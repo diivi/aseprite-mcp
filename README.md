@@ -1,4 +1,5 @@
 # Aseprite MCP Tools
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/diivi/aseprite-mcp)](https://archestra.ai/mcp-catalog/diivi__aseprite-mcp)
 
 A Python module that serves as an MCP server for interacting with the Aseprite API
 
