@@ -922,3 +922,105 @@ async def tween_cel_positions_eased(
             f"in {filename}"
         )
     return f"Failed to tween cel positions with easing: {output}"
+
+@mcp.tool()
+async def tween_cel_opacity_eased(
+    filename: str,
+    layer_name: str,
+    start_frame: int,
+    end_frame: int,
+    start_opacity: int,
+    end_opacity: int,
+    easing: str = "smoothstep",
+    create_missing_cels: bool = False,
+    source_frame_index: int | None = None
+) -> str:
+    """Tween cel opacity with easing across a frame range."""
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+    if start_opacity < 0 or start_opacity > 255 or end_opacity < 0 or end_opacity > 255:
+        return "Opacity must be between 0 and 255"
+
+    easing = (easing or "smoothstep").lower().strip()
+    if easing not in {"linear", "ease_in", "ease_out", "ease_in_out", "smoothstep"}:
+        return "Unsupported easing (linear, ease_in, ease_out, ease_in_out, smoothstep)"
+
+    create_flag = "true" if create_missing_cels else "false"
+    source_idx = "nil" if source_frame_index is None else str(source_frame_index)
+
+    script = f"""
+    local spr = app.activeSprite
+    if not spr then return "No active sprite" end
+
+    local target_layer = nil
+    for _, layer in ipairs(spr.layers) do
+        if layer.name == "{layer_name}" then
+            target_layer = layer
+            break
+        end
+    end
+    if not target_layer then return "Layer not found" end
+
+    local start_idx = {start_frame}
+    local end_idx = {end_frame}
+    if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
+        return "Frame range out of bounds"
+    end
+
+    local function ease(t)
+        local mode = "{easing}"
+        if mode == "linear" then return t end
+        if mode == "ease_in" then return t * t end
+        if mode == "ease_out" then return 1 - (1 - t) * (1 - t) end
+        if mode == "ease_in_out" then
+            if t < 0.5 then return 2 * t * t end
+            local u = -2 * t + 2
+            return 1 - (u * u) / 2
+        end
+        return t * t * (3 - 2 * t)
+    end
+
+    local span = end_idx - start_idx
+    app.transaction(function()
+        for fi = start_idx, end_idx do
+            local t = 0
+            if span > 0 then
+                t = (fi - start_idx) / span
+            end
+            local e = ease(t)
+            local op = math.floor({start_opacity} + ({end_opacity} - {start_opacity}) * e + 0.5)
+            if op < 0 then op = 0 end
+            if op > 255 then op = 255 end
+            local frame = spr.frames[fi]
+            local cel = target_layer:cel(frame)
+            if not cel and {create_flag} then
+                local source_frame = {source_idx}
+                if source_frame == nil then
+                    source_frame = start_idx
+                end
+                local source_cel = target_layer:cel(spr.frames[source_frame])
+                if source_cel then
+                    local img = source_cel.image:clone()
+                    cel = spr:newCel(target_layer, frame, img, source_cel.position)
+                else
+                    local img = Image(spr.width, spr.height, spr.colorMode)
+                    cel = spr:newCel(target_layer, frame, img, Point(0, 0))
+                end
+            end
+            if cel then
+                cel.opacity = op
+            end
+        end
+    end)
+
+    spr:saveAs(spr.filename)
+    return "Cel opacity tweened with easing"
+    """
+
+    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    if success:
+        return (
+            f"Tweened cel opacity ({easing}) on '{layer_name}' frames {start_frame}-{end_frame} "
+            f"in {filename}"
+        )
+    return f"Failed to tween cel opacity with easing: {output}"

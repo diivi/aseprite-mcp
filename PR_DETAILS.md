@@ -13,3 +13,4 @@
 - copy_layers_between_sprites
 - animation_workflow_guide
 - tween_cel_positions_eased
+- tween_cel_opacity_eased
