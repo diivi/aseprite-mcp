@@ -736,3 +736,88 @@ async def set_onion_skin(
         "Onion skin settings are UI-only in batch mode; no changes applied "
         f"(enabled={enabled}, before={before}, after={after}, opacity={opacity})"
     )
+
+@mcp.tool()
+async def propagate_cels(
+    filename: str,
+    layer_names: list[str],
+    source_frame: int,
+    start_frame: int,
+    end_frame: int,
+    replace: bool = True
+) -> str:
+    """Copy cels from a source frame to a range of frames for specific layers.
+
+    Args:
+        filename: Name of the Aseprite file to modify
+        layer_names: List of layer names to copy
+        source_frame: Frame index to copy from (1-based)
+        start_frame: Start frame index (1-based)
+        end_frame: End frame index (1-based, inclusive)
+        replace: Whether to overwrite existing cels (default: True)
+    """
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+    if not layer_names:
+        return "Layer names list cannot be empty"
+
+    replace_flag = "true" if replace else "false"
+    layers_lua = "{" + ",".join([f"\"{name}\"" for name in layer_names]) + "}"
+
+    script = f"""
+    local spr = app.activeSprite
+    if not spr then return "No active sprite" end
+
+    local src_idx = {source_frame}
+    local start_idx = {start_frame}
+    local end_idx = {end_frame}
+    if src_idx < 1 or src_idx > #spr.frames then return "Source frame out of range" end
+    if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
+        return "Frame range out of bounds"
+    end
+
+    local name_list = {layers_lua}
+    local targets = {{}}
+    for _, name in ipairs(name_list) do
+        for _, layer in ipairs(spr.layers) do
+            if layer.name == name then
+                table.insert(targets, layer)
+                break
+            end
+        end
+    end
+    if #targets == 0 then return "No layers found" end
+
+    app.transaction(function()
+        for fi = start_idx, end_idx do
+            if fi ~= src_idx then
+                local dst_frame = spr.frames[fi]
+                for _, layer in ipairs(targets) do
+                    local src_cel = layer:cel(spr.frames[src_idx])
+                    if src_cel then
+                        local dst_cel = layer:cel(dst_frame)
+                        if dst_cel and {replace_flag} then
+                            spr:deleteCel(dst_cel)
+                            dst_cel = nil
+                        end
+                        if not dst_cel then
+                            local img = src_cel.image:clone()
+                            spr:newCel(layer, dst_frame, img, src_cel.position)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    spr:saveAs(spr.filename)
+    return "Cels propagated"
+    """
+
+    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    if success:
+        return (
+            f"Propagated cels from frame {source_frame} to frames {start_frame}-{end_frame} "
+            f"for layers {', '.join(layer_names)} in {filename}"
+        )
+    return f"Failed to propagate cels: {output}"

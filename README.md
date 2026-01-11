@@ -91,6 +91,7 @@ This fork adds extra tools to improve animation and layer control:
 - `copy_frame(filename, source_frame, target_frame, overwrite)` - copy a frame (or append)
 - `set_tag(filename, name, from_frame, to_frame, direction)` - create/update an animation tag (direction may be ignored in batch)
 - `set_onion_skin(filename, enabled, before, after, opacity)` - configure onion skin (UI-only in batch)
+- `propagate_cels(filename, layer_names, source_frame, start_frame, end_frame, replace)` - copy cels from a source frame to a frame range for layers
 - `draw_pixels_at(filename, layer_name, frame_index, pixels, create_if_missing)` - draw pixels on a specific layer/frame
 - `draw_line_at(filename, layer_name, frame_index, x1, y1, x2, y2, color, thickness, create_if_missing)` - draw a line on a specific layer/frame
 - `draw_rectangle_at(filename, layer_name, frame_index, x, y, width, height, color, fill, create_if_missing)` - draw a rectangle on a specific layer/frame
@@ -109,6 +110,7 @@ Use this workflow to avoid re-drawing every frame and keep consistent visuals:
 1) Build the base scene once on frame 1 using layer-targeted tools (`*_at`) or `create_cel`.
 2) Duplicate the base:
    - Same file: use `copy_frame` or `copy_cel` to populate other frames.
+   - For static layers across many frames: use `propagate_cels`.
    - New file/scene: use `copy_sprite` to clone the whole scene, then adjust.
 3) Animate via transforms, not redrawing:
    - `tween_cel_positions` for motion arcs

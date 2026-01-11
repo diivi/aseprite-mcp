@@ -9,3 +9,4 @@
 - draw_polygon, draw_path, apply_gradient_rect
 - get_palette, set_palette
 - copy_sprite
+- propagate_cels
