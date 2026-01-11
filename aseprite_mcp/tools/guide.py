@@ -13,6 +13,7 @@ async def animation_workflow_guide(use_case: str = "character") -> str:
             "Add secondary motion on separate layers (hair, accessories) for readability.",
             "Keep layers deterministic: set_layer + *_at drawing tools.",
             "Finalize with set_tag for loop ranges and export_sprite for preview.",
+            "Run quality_check.py before delivery to ensure no missing layers/cels.",
         ]
     elif use_case == "environment":
         bullets = [
@@ -22,6 +23,7 @@ async def animation_workflow_guide(use_case: str = "character") -> str:
             "Use apply_gradient_rect and palette tools for consistent color mood.",
             "Copy reusable assets across scenes with copy_layers_between_sprites.",
             "Tag loops and export GIFs to validate pacing.",
+            "Run quality_check.py before delivery to ensure no missing layers/cels.",
         ]
     else:
         bullets = [
@@ -30,6 +32,7 @@ async def animation_workflow_guide(use_case: str = "character") -> str:
             "Use layer-targeted tools (*_at) to avoid active-cel drift.",
             "Propagate static layers across the frame range.",
             "Use tags for loop ranges and export previews early.",
+            "Run quality_check.py before delivery to ensure no missing layers/cels.",
         ]
 
     lines = [header, f"Use case: {use_case}"]

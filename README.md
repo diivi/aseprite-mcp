@@ -136,3 +136,4 @@ Run a validation pass before shipping animations:
 ```
 python scripts/quality_check.py path/to/file.aseprite --layers sky,ground,character --start 1 --end 12
 ```
+Agents should run this script before every delivery and report the JSON results.
