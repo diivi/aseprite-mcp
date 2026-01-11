@@ -10,3 +10,4 @@
 - get_palette, set_palette
 - copy_sprite
 - propagate_cels
+- copy_layers_between_sprites

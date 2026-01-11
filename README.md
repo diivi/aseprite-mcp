@@ -103,6 +103,7 @@ This fork adds extra tools to improve animation and layer control:
 - `get_palette(filename)` - get palette as JSON list
 - `set_palette(filename, colors)` - set palette from hex list
 - `copy_sprite(filename, output_filename, overwrite)` - copy a sprite to a new .aseprite file
+- `copy_layers_between_sprites(source_filename, target_filename, layer_names, replace, create_missing_frames)` - copy layers by name between sprites
 
 ## Animation Consistency Guide (for agents)
 Use this workflow to avoid re-drawing every frame and keep consistent visuals:
@@ -112,6 +113,7 @@ Use this workflow to avoid re-drawing every frame and keep consistent visuals:
    - Same file: use `copy_frame` or `copy_cel` to populate other frames.
    - For static layers across many frames: use `propagate_cels`.
    - New file/scene: use `copy_sprite` to clone the whole scene, then adjust.
+   - Cross-scene reuse: use `copy_layers_between_sprites` to reuse assets like trees or sky.
 3) Animate via transforms, not redrawing:
    - `tween_cel_positions` for motion arcs
    - `offset_cel_positions` for subtle parallax/loop drift
