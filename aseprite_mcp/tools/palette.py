@@ -71,3 +71,114 @@ async def set_palette(filename: str, colors: List[str]) -> str:
     if success:
         return f"Palette set with {len(colors)} colors in {filename}"
     return f"Failed to set palette: {output}"
+
+@mcp.tool()
+async def remap_colors_in_cel_range(
+    filename: str,
+    layer_name: str,
+    start_frame: int,
+    end_frame: int,
+    mappings: List[dict],
+    create_missing_cels: bool = False,
+    source_frame_index: int | None = None
+) -> str:
+    """Remap colors in a layer across a frame range using explicit mappings."""
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+    if not mappings:
+        return "Mappings list cannot be empty"
+
+    parsed = []
+    for m in mappings:
+        src = (m.get("from") or "").lstrip("#")
+        dst = (m.get("to") or "").lstrip("#")
+        if len(src) != 6 or len(dst) != 6:
+            return "Mappings must use #RRGGBB colors"
+        sr = int(src[0:2], 16)
+        sg = int(src[2:4], 16)
+        sb = int(src[4:6], 16)
+        dr = int(dst[0:2], 16)
+        dg = int(dst[2:4], 16)
+        db = int(dst[4:6], 16)
+        parsed.append((sr, sg, sb, dr, dg, db))
+
+    mapping_lua = ", ".join(
+        [f"{{{sr},{sg},{sb},{dr},{dg},{db}}}" for sr, sg, sb, dr, dg, db in parsed]
+    )
+    create_flag = "true" if create_missing_cels else "false"
+    source_idx = "nil" if source_frame_index is None else str(source_frame_index)
+
+    script = f"""
+    local spr = app.activeSprite
+    if not spr then return "No active sprite" end
+
+    local start_idx = {start_frame}
+    local end_idx = {end_frame}
+    if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
+        return "Frame range out of bounds"
+    end
+
+    local target = nil
+    for _, layer in ipairs(spr.layers) do
+        if layer.name == "{layer_name}" then target = layer break end
+    end
+    if not target then return "Layer not found" end
+
+    local source_frame = {source_idx}
+    if source_frame == nil then
+        source_frame = start_idx
+    end
+    if source_frame < 1 or source_frame > #spr.frames then
+        return "Source frame out of range"
+    end
+
+    local map = {{ {mapping_lua} }}
+
+    app.transaction(function()
+        for fi = start_idx, end_idx do
+            local frame = spr.frames[fi]
+            local cel = target:cel(frame)
+            if not cel and {create_flag} then
+                local source_cel = target:cel(spr.frames[source_frame])
+                if source_cel then
+                    local img = source_cel.image:clone()
+                    cel = spr:newCel(target, frame, img, source_cel.position)
+                else
+                    local img = Image(spr.width, spr.height, spr.colorMode)
+                    cel = spr:newCel(target, frame, img, Point(0, 0))
+                end
+            end
+            if cel then
+                local img = cel.image
+                for y = 0, img.height - 1 do
+                    for x = 0, img.width - 1 do
+                        local c = img:getPixel(x, y)
+                        local r = app.pixelColor.rgbaR(c)
+                        local g = app.pixelColor.rgbaG(c)
+                        local b = app.pixelColor.rgbaB(c)
+                        local a = app.pixelColor.rgbaA(c)
+                        if a > 0 then
+                            for _, m in ipairs(map) do
+                                if r == m[1] and g == m[2] and b == m[3] then
+                                    local nc = app.pixelColor.rgba(m[4], m[5], m[6], a)
+                                    img:putPixel(x, y, nc)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    spr:saveAs(spr.filename)
+    return "Colors remapped"
+    """
+
+    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    if success:
+        return (
+            f"Remapped colors on '{layer_name}' frames {start_frame}-{end_frame} in {filename}"
+        )
+    return f"Failed to remap colors: {output}"

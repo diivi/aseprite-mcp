@@ -15,3 +15,4 @@
 - tween_cel_positions_eased
 - tween_cel_opacity_eased
 - tween_cel_scale_eased
+- remap_colors_in_cel_range
