@@ -92,6 +92,7 @@ This fork adds extra tools to improve animation and layer control:
 - `set_tag(filename, name, from_frame, to_frame, direction)` - create/update an animation tag (direction may be ignored in batch)
 - `set_onion_skin(filename, enabled, before, after, opacity)` - configure onion skin (UI-only in batch)
 - `propagate_cels(filename, layer_names, source_frame, start_frame, end_frame, replace)` - copy cels from a source frame to a frame range for layers
+- `tween_cel_positions_eased(filename, layer_name, start_frame, end_frame, start_x, start_y, end_x, end_y, easing, create_missing_cels, source_frame_index)` - tween with easing (linear, ease_in, ease_out, ease_in_out, smoothstep)
 - `draw_pixels_at(filename, layer_name, frame_index, pixels, create_if_missing)` - draw pixels on a specific layer/frame
 - `draw_line_at(filename, layer_name, frame_index, x1, y1, x2, y2, color, thickness, create_if_missing)` - draw a line on a specific layer/frame
 - `draw_rectangle_at(filename, layer_name, frame_index, x, y, width, height, color, fill, create_if_missing)` - draw a rectangle on a specific layer/frame
