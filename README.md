@@ -109,6 +109,8 @@ This fork adds extra tools to improve animation and layer control:
 - `copy_sprite(filename, output_filename, overwrite)` - copy a sprite to a new .aseprite file
 - `copy_layers_between_sprites(source_filename, target_filename, layer_names, replace, create_missing_frames)` - copy layers by name between sprites
 - `animation_workflow_guide(use_case)` - return an English guide for optimized animation workflows
+- `ensure_layers_present(filename, layer_names, start_frame, end_frame)` - ensure cels exist across frames
+- `validate_scene(filename, required_layers, start_frame, end_frame)` - validate missing layers/cels (JSON)
 
 ## Animation Consistency Guide (for agents)
 Use this workflow to avoid re-drawing every frame and keep consistent visuals:
@@ -128,3 +130,9 @@ Use this workflow to avoid re-drawing every frame and keep consistent visuals:
    - Use `clear_cel` + redraw on that layer/frame.
 
 This minimizes token usage and preserves consistency across frames and scenes.
+
+## Quality Checks
+Run a validation pass before shipping animations:
+```
+python scripts/quality_check.py path/to/file.aseprite --layers sky,ground,character --start 1 --end 12
+```
