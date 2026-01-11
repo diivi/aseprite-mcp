@@ -74,3 +74,10 @@ This fork adds extra tools to improve animation and layer control:
 - `set_frame(filename, frame_index)` - set the active frame (1-based)
 - `set_frame_duration(filename, frame_index, duration_ms)` - set frame duration in ms
 - `set_layer(filename, layer_name, create_if_missing)` - set or create an active layer
+- `add_frames(filename, count, duration_ms)` - add multiple frames at once
+- `set_frame_duration_all(filename, duration_ms)` - set duration for all frames
+- `set_layer_visibility(filename, layer_name, visible)` - toggle layer visibility
+- `set_layer_opacity(filename, layer_name, opacity)` - set layer opacity (0-255)
+- `get_sprite_info(filename)` - return sprite info JSON string
+- `start_preview_server(directory, port)` - start local HTTP server for previews
+- `stop_preview_server(port)` - stop preview server
