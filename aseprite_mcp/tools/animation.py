@@ -672,6 +672,77 @@ async def copy_frame(
     return f"Failed to copy frame: {output}"
 
 @mcp.tool()
+async def propagate_frame_to_range(
+    filename: str,
+    source_frame: int,
+    start_frame: int,
+    end_frame: int,
+    overwrite: bool = True
+) -> str:
+    """Copy all layers from a source frame to a range of frames.
+
+    Args:
+        filename: Name of the Aseprite file to modify
+        source_frame: Frame index to copy from (1-based)
+        start_frame: Start frame index (1-based)
+        end_frame: End frame index (1-based, inclusive)
+        overwrite: Whether to overwrite existing cels (default: True)
+    """
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+
+    overwrite_flag = "true" if overwrite else "false"
+
+    script = f"""
+    local spr = app.activeSprite
+    if not spr then return "No active sprite" end
+
+    local src_idx = {source_frame}
+    local start_idx = {start_frame}
+    local end_idx = {end_frame}
+    if src_idx < 1 or src_idx > #spr.frames then return "Source frame out of range" end
+    if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
+        return "Frame range out of bounds"
+    end
+
+    app.transaction(function()
+        for fi = start_idx, end_idx do
+            if fi ~= src_idx then
+                local dst_frame = spr.frames[fi]
+                if {overwrite_flag} then
+                    for _, layer in ipairs(spr.layers) do
+                        if not layer.isGroup then
+                            local dst_cel = layer:cel(dst_frame)
+                            if dst_cel then spr:deleteCel(dst_cel) end
+                        end
+                    end
+                end
+                for _, layer in ipairs(spr.layers) do
+                    if not layer.isGroup then
+                        local src_cel = layer:cel(spr.frames[src_idx])
+                        if src_cel then
+                            local img = src_cel.image:clone()
+                            spr:newCel(layer, dst_frame, img, src_cel.position)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    spr:saveAs(spr.filename)
+    return "Frame range propagated"
+    """
+
+    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    if success:
+        return (
+            f"Propagated frame {source_frame} to frames {start_frame}-{end_frame} "
+            f"in {filename}"
+        )
+    return f"Failed to propagate frame range: {output}"
+
+@mcp.tool()
 async def set_tag(
     filename: str,
     name: str,
@@ -922,6 +993,96 @@ async def tween_cel_positions_eased(
             f"in {filename}"
         )
     return f"Failed to tween cel positions with easing: {output}"
+
+@mcp.tool()
+async def oscillate_cel_positions(
+    filename: str,
+    layer_name: str,
+    start_frame: int,
+    end_frame: int,
+    amplitude_x: int = 0,
+    amplitude_y: int = 0,
+    cycles: float = 1.0,
+    phase_deg: float = 0.0,
+    create_missing_cels: bool = False,
+    source_frame_index: int | None = None
+) -> str:
+    """Oscillate cel positions across a frame range using a sine wave."""
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+
+    create_flag = "true" if create_missing_cels else "false"
+    source_idx = "nil" if source_frame_index is None else str(source_frame_index)
+
+    script = f"""
+    local spr = app.activeSprite
+    if not spr then return "No active sprite" end
+
+    local target_layer = nil
+    for _, layer in ipairs(spr.layers) do
+        if layer.name == "{layer_name}" then
+            target_layer = layer
+            break
+        end
+    end
+    if not target_layer then return "Layer not found" end
+
+    local start_idx = {start_frame}
+    local end_idx = {end_frame}
+    if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
+        return "Frame range out of bounds"
+    end
+
+    local amplitude_x = {amplitude_x}
+    local amplitude_y = {amplitude_y}
+    local cycles = {cycles}
+    local phase = ({phase_deg}) * math.pi / 180
+    local span = end_idx - start_idx
+
+    app.transaction(function()
+        for fi = start_idx, end_idx do
+            local t = 0
+            if span > 0 then
+                t = (fi - start_idx) / span
+            end
+            local angle = 2 * math.pi * cycles * t + phase
+            local dx = math.floor(amplitude_x * math.sin(angle) + 0.5)
+            local dy = math.floor(amplitude_y * math.cos(angle) + 0.5)
+
+            local frame = spr.frames[fi]
+            local cel = target_layer:cel(frame)
+            if not cel and {create_flag} then
+                local source_frame = {source_idx}
+                if source_frame == nil then
+                    source_frame = start_idx
+                end
+                local source_cel = target_layer:cel(spr.frames[source_frame])
+                if source_cel then
+                    local img = source_cel.image:clone()
+                    cel = spr:newCel(target_layer, frame, img, source_cel.position)
+                else
+                    local img = Image(spr.width, spr.height, spr.colorMode)
+                    cel = spr:newCel(target_layer, frame, img, Point(0, 0))
+                end
+            end
+            if cel then
+                local pos = cel.position
+                cel.position = Point(pos.x + dx, pos.y + dy)
+            end
+        end
+    end)
+
+    spr:saveAs(spr.filename)
+    return "Cel positions oscillated"
+    """
+
+    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    if success:
+        return (
+            f"Oscillated cel positions on '{layer_name}' frames {start_frame}-{end_frame} "
+            f"in {filename}"
+        )
+    return f"Failed to oscillate cel positions: {output}"
 
 @mcp.tool()
 async def tween_cel_opacity_eased(
