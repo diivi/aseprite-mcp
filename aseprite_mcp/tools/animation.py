@@ -1024,3 +1024,131 @@ async def tween_cel_opacity_eased(
             f"in {filename}"
         )
     return f"Failed to tween cel opacity with easing: {output}"
+
+@mcp.tool()
+async def tween_cel_scale_eased(
+    filename: str,
+    layer_name: str,
+    start_frame: int,
+    end_frame: int,
+    start_scale: float,
+    end_scale: float,
+    easing: str = "smoothstep",
+    anchor: str = "center",
+    replace: bool = True,
+    create_missing_cels: bool = True,
+    source_frame_index: int | None = None
+) -> str:
+    """Tween cel scale with easing across a frame range."""
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+    if start_scale <= 0 or end_scale <= 0:
+        return "Scale must be > 0"
+
+    easing = (easing or "smoothstep").lower().strip()
+    if easing not in {"linear", "ease_in", "ease_out", "ease_in_out", "smoothstep"}:
+        return "Unsupported easing (linear, ease_in, ease_out, ease_in_out, smoothstep)"
+
+    anchor = (anchor or "center").lower().strip()
+    if anchor not in {"center", "topleft"}:
+        return "Unsupported anchor (center, topleft)"
+
+    create_flag = "true" if create_missing_cels else "false"
+    replace_flag = "true" if replace else "false"
+    source_idx = "nil" if source_frame_index is None else str(source_frame_index)
+
+    script = f"""
+    local spr = app.activeSprite
+    if not spr then return "No active sprite" end
+
+    local target_layer = nil
+    for _, layer in ipairs(spr.layers) do
+        if layer.name == "{layer_name}" then
+            target_layer = layer
+            break
+        end
+    end
+    if not target_layer then return "Layer not found" end
+
+    local start_idx = {start_frame}
+    local end_idx = {end_frame}
+    if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
+        return "Frame range out of bounds"
+    end
+
+    local source_frame = {source_idx}
+    if source_frame == nil then
+        source_frame = start_idx
+    end
+    if source_frame < 1 or source_frame > #spr.frames then
+        return "Source frame out of range"
+    end
+
+    local source_cel = target_layer:cel(spr.frames[source_frame])
+    if not source_cel then
+        return "Source cel not found"
+    end
+
+    local base_img = source_cel.image:clone()
+    local base_w = base_img.width
+    local base_h = base_img.height
+    local base_pos = source_cel.position
+
+    local function ease(t)
+        local mode = "{easing}"
+        if mode == "linear" then return t end
+        if mode == "ease_in" then return t * t end
+        if mode == "ease_out" then return 1 - (1 - t) * (1 - t) end
+        if mode == "ease_in_out" then
+            if t < 0.5 then return 2 * t * t end
+            local u = -2 * t + 2
+            return 1 - (u * u) / 2
+        end
+        return t * t * (3 - 2 * t)
+    end
+
+    local span = end_idx - start_idx
+    app.transaction(function()
+        for fi = start_idx, end_idx do
+            local t = 0
+            if span > 0 then
+                t = (fi - start_idx) / span
+            end
+            local e = ease(t)
+            local scale = {start_scale} + ({end_scale} - {start_scale}) * e
+            local new_w = math.max(1, math.floor(base_w * scale + 0.5))
+            local new_h = math.max(1, math.floor(base_h * scale + 0.5))
+
+            local dst_frame = spr.frames[fi]
+            local dst_cel = target_layer:cel(dst_frame)
+            if dst_cel and {replace_flag} then
+                spr:deleteCel(dst_cel)
+                dst_cel = nil
+            end
+            if not dst_cel and {create_flag} then
+                local img = base_img:clone()
+                img:resize(new_w, new_h)
+                local pos_x = base_pos.x
+                local pos_y = base_pos.y
+                if "{anchor}" == "center" then
+                    local cx = base_pos.x + base_w / 2
+                    local cy = base_pos.y + base_h / 2
+                    pos_x = math.floor(cx - new_w / 2 + 0.5)
+                    pos_y = math.floor(cy - new_h / 2 + 0.5)
+                end
+                dst_cel = spr:newCel(target_layer, dst_frame, img, Point(pos_x, pos_y))
+            end
+        end
+    end)
+
+    spr:saveAs(spr.filename)
+    return "Cel scale tweened with easing"
+    """
+
+    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    if success:
+        return (
+            f"Tweened cel scale ({easing}) on '{layer_name}' frames {start_frame}-{end_frame} "
+            f"in {filename}"
+        )
+    return f"Failed to tween cel scale with easing: {output}"

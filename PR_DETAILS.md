@@ -14,3 +14,4 @@
 - animation_workflow_guide
 - tween_cel_positions_eased
 - tween_cel_opacity_eased
+- tween_cel_scale_eased
