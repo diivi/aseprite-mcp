@@ -66,3 +66,11 @@ If installed, the binary will be at `/opt/steamapps/common/Aseprite/aseprite` an
   }
 }
 ```
+
+## Enhanced Tools
+
+This fork adds extra tools to improve animation and layer control:
+
+- `set_frame(filename, frame_index)` - set the active frame (1-based)
+- `set_frame_duration(filename, frame_index, duration_ms)` - set frame duration in ms
+- `set_layer(filename, layer_name, create_if_missing)` - set or create an active layer
