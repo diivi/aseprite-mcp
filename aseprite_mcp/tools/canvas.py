@@ -11,10 +11,11 @@ async def create_canvas(width: int, height: int, filename: str = "canvas.aseprit
         height: Height of the canvas in pixels
         filename: Name of the output file (default: canvas.aseprite)
     """
+    safe_path = filename.replace("\\", "/")
     script = f"""
     local spr = Sprite({width}, {height})
-    spr:saveAs("{filename}")
-    return "Canvas created successfully: {filename}"
+    spr:saveAs("{safe_path}")
+    return "Canvas created successfully"
     """
     
     success, output = AsepriteCommand.execute_lua_script(script)

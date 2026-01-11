@@ -3,3 +3,4 @@ from . import drawing
 from . import export
 from . import animation
 from . import preview
+from . import palette

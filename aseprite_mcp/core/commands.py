@@ -3,7 +3,8 @@ import tempfile
 import os
 import dotenv
 
-dotenv.load_dotenv()
+_ENV_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+dotenv.load_dotenv(dotenv_path=_ENV_PATH)
 
 class AsepriteCommand:
     """Helper class for running Aseprite commands."""
@@ -19,6 +20,7 @@ class AsepriteCommand:
             tuple: (success, output) where success is a boolean and output is the command output
         """
         try:
+            dotenv.load_dotenv(dotenv_path=_ENV_PATH)
             cmd = [os.getenv('ASEPRITE_PATH', 'aseprite')] + args
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             return True, result.stdout

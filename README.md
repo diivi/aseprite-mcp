@@ -81,3 +81,23 @@ This fork adds extra tools to improve animation and layer control:
 - `get_sprite_info(filename)` - return sprite info JSON string
 - `start_preview_server(directory, port)` - start local HTTP server for previews
 - `stop_preview_server(port)` - stop preview server
+- `duplicate_frame_range(filename, start_frame, end_frame, times)` - append copies of a frame range
+- `set_cel_position(filename, layer_name, frame_index, x, y, create_if_missing, source_frame_index)` - position a cel on a frame
+- `tween_cel_positions(filename, layer_name, start_frame, end_frame, start_x, start_y, end_x, end_y, create_missing_cels, source_frame_index)` - linear position tween across frames
+- `offset_cel_positions(filename, layer_name, start_frame, end_frame, dx, dy)` - shift cel positions across frames
+- `create_cel(filename, layer_name, frame_index, x, y)` - create an empty cel at a position
+- `clear_cel(filename, layer_name, frame_index)` - delete a cel on a frame
+- `copy_cel(filename, layer_name, source_frame, target_frame, replace)` - copy a cel between frames
+- `copy_frame(filename, source_frame, target_frame, overwrite)` - copy a frame (or append)
+- `set_tag(filename, name, from_frame, to_frame, direction)` - create/update an animation tag (direction may be ignored in batch)
+- `set_onion_skin(filename, enabled, before, after, opacity)` - configure onion skin (UI-only in batch)
+- `draw_pixels_at(filename, layer_name, frame_index, pixels, create_if_missing)` - draw pixels on a specific layer/frame
+- `draw_line_at(filename, layer_name, frame_index, x1, y1, x2, y2, color, thickness, create_if_missing)` - draw a line on a specific layer/frame
+- `draw_rectangle_at(filename, layer_name, frame_index, x, y, width, height, color, fill, create_if_missing)` - draw a rectangle on a specific layer/frame
+- `draw_circle_at(filename, layer_name, frame_index, center_x, center_y, radius, color, fill, create_if_missing)` - draw a circle on a specific layer/frame
+- `fill_area_at(filename, layer_name, frame_index, x, y, color, create_if_missing)` - fill an area on a specific layer/frame
+- `draw_polygon(filename, layer_name, frame_index, points, color, fill, create_if_missing)` - draw a polygon on a specific layer/frame
+- `draw_path(filename, layer_name, frame_index, points, color, thickness, create_if_missing)` - draw a polyline path on a specific layer/frame
+- `apply_gradient_rect(filename, layer_name, frame_index, x, y, width, height, color_start, color_end, horizontal, create_if_missing)` - apply a linear gradient
+- `get_palette(filename)` - get palette as JSON list
+- `set_palette(filename, colors)` - set palette from hex list
