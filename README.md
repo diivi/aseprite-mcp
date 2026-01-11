@@ -104,6 +104,7 @@ This fork adds extra tools to improve animation and layer control:
 - `set_palette(filename, colors)` - set palette from hex list
 - `copy_sprite(filename, output_filename, overwrite)` - copy a sprite to a new .aseprite file
 - `copy_layers_between_sprites(source_filename, target_filename, layer_names, replace, create_missing_frames)` - copy layers by name between sprites
+- `animation_workflow_guide(use_case)` - return an English guide for optimized animation workflows
 
 ## Animation Consistency Guide (for agents)
 Use this workflow to avoid re-drawing every frame and keep consistent visuals:

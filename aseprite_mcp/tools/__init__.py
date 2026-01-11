@@ -5,3 +5,4 @@ from . import animation
 from . import preview
 from . import palette
 from . import scene
+from . import guide
