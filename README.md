@@ -101,3 +101,21 @@ This fork adds extra tools to improve animation and layer control:
 - `apply_gradient_rect(filename, layer_name, frame_index, x, y, width, height, color_start, color_end, horizontal, create_if_missing)` - apply a linear gradient
 - `get_palette(filename)` - get palette as JSON list
 - `set_palette(filename, colors)` - set palette from hex list
+- `copy_sprite(filename, output_filename, overwrite)` - copy a sprite to a new .aseprite file
+
+## Animation Consistency Guide (for agents)
+Use this workflow to avoid re-drawing every frame and keep consistent visuals:
+
+1) Build the base scene once on frame 1 using layer-targeted tools (`*_at`) or `create_cel`.
+2) Duplicate the base:
+   - Same file: use `copy_frame` or `copy_cel` to populate other frames.
+   - New file/scene: use `copy_sprite` to clone the whole scene, then adjust.
+3) Animate via transforms, not redrawing:
+   - `tween_cel_positions` for motion arcs
+   - `offset_cel_positions` for subtle parallax/loop drift
+4) Keep layers deterministic:
+   - `set_layer` + layer-specific tools avoid active-cel drift.
+5) For small variation, edit only a few frames or layers:
+   - Use `clear_cel` + redraw on that layer/frame.
+
+This minimizes token usage and preserves consistency across frames and scenes.

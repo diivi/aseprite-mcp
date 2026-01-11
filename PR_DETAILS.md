@@ -8,3 +8,4 @@
 - draw_pixels_at, draw_line_at, draw_rectangle_at, draw_circle_at, fill_area_at
 - draw_polygon, draw_path, apply_gradient_rect
 - get_palette, set_palette
+- copy_sprite
