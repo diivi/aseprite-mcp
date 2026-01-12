@@ -437,6 +437,9 @@ async def animation_sanitize(
     layer_order: List[str] | None = None,
     layer_frame_ranges: List[str] | None = None,
     ensure_layers: List[str] | None = None,
+    overlap_pairs: List[str] | None = None,
+    report_bounds: bool = False,
+    max_overlaps: int = 200,
     out_of_range_action: str = "set_opacity_zero",
     out_of_range_opacity: int = 0,
     report_only: bool = False
@@ -450,6 +453,8 @@ async def animation_sanitize(
         return f"File {filename} not found"
     if start_frame < 1:
         return "Start frame must be >= 1"
+    if max_overlaps < 0:
+        return "max_overlaps must be >= 0"
     if out_of_range_action not in {"set_opacity_zero", "delete_cels", "none"}:
         return "Unsupported out_of_range_action"
     if out_of_range_opacity < 0 or out_of_range_opacity > 255:
@@ -496,8 +501,26 @@ async def animation_sanitize(
         ranges_lua += f"[\"{layer}\"]={{{span_list}}},"
     ranges_lua += "}"
 
+    pairs = []
+    if overlap_pairs:
+        for entry in overlap_pairs:
+            if not entry:
+                continue
+            if "," in entry:
+                left, right = entry.split(",", 1)
+            elif ":" in entry:
+                left, right = entry.split(":", 1)
+            else:
+                continue
+            left = left.strip()
+            right = right.strip()
+            if left and right:
+                pairs.append((left, right))
+    pairs_lua = "{" + ",".join([f"{{\"{a}\",\"{b}\"}}" for a, b in pairs]) + "}"
+
     end_frame_val = "nil" if end_frame is None else str(end_frame)
     report_only_flag = "true" if report_only else "false"
+    report_bounds_flag = "true" if report_bounds else "false"
 
     script = f"""
     local spr = app.activeSprite
@@ -532,6 +555,7 @@ async def animation_sanitize(
     local ranges_by_layer = {ranges_lua}
     local order_names = {order_lua}
     local ensure_names = {ensure_lua}
+    local pairs = {pairs_lua}
 
     local sanitized = {{
         reordered = false,
@@ -540,6 +564,22 @@ async def animation_sanitize(
         opacity_set = 0,
         deleted = 0
     }}
+
+    local analysis = {{
+        total_layers = #spr.layers,
+        layers_checked = #target_layers,
+        total_cels = 0,
+        empty_frames = 0,
+        inactive_layers = {{}},
+        overlaps = 0
+    }}
+
+    local layer_activity = {{}}
+    for _, layer in ipairs(target_layers) do
+        layer_activity[layer.name] = 0
+    end
+
+    local overlaps = {{}}
 
     local function in_ranges(layer_name, frame_index)
         local ranges = ranges_by_layer[layer_name]
@@ -600,24 +640,80 @@ async def animation_sanitize(
         end
 
         for fi = start_idx, end_idx do
+            local has_cel = false
             local frame = spr.frames[fi]
             for _, layer in ipairs(target_layers) do
                 local cel = layer:cel(frame)
-                if cel and not in_ranges(layer.name, fi) then
-                    sanitized.out_of_range = sanitized.out_of_range + 1
-                    if not {report_only_flag} then
-                        if "{out_of_range_action}" == "delete_cels" then
-                            spr:deleteCel(cel)
-                            sanitized.deleted = sanitized.deleted + 1
-                        elseif "{out_of_range_action}" == "set_opacity_zero" then
-                            cel.opacity = {out_of_range_opacity}
-                            sanitized.opacity_set = sanitized.opacity_set + 1
+                if cel then
+                    has_cel = true
+                    analysis.total_cels = analysis.total_cels + 1
+                    layer_activity[layer.name] = (layer_activity[layer.name] or 0) + 1
+                    if not in_ranges(layer.name, fi) then
+                        sanitized.out_of_range = sanitized.out_of_range + 1
+                        if not {report_only_flag} then
+                            if "{out_of_range_action}" == "delete_cels" then
+                                spr:deleteCel(cel)
+                                sanitized.deleted = sanitized.deleted + 1
+                            elseif "{out_of_range_action}" == "set_opacity_zero" then
+                                cel.opacity = {out_of_range_opacity}
+                                sanitized.opacity_set = sanitized.opacity_set + 1
+                            end
+                        end
+                    end
+                end
+            end
+            if not has_cel then
+                analysis.empty_frames = analysis.empty_frames + 1
+            end
+
+            if #pairs > 0 then
+                for _, pair in ipairs(pairs) do
+                    if #overlaps >= {max_overlaps} then break end
+                    local layer_a = nil
+                    local layer_b = nil
+                    for _, layer in ipairs(target_layers) do
+                        if layer.name == pair[1] then layer_a = layer end
+                        if layer.name == pair[2] then layer_b = layer end
+                    end
+                    if layer_a and layer_b then
+                        local cel_a = layer_a:cel(frame)
+                        local cel_b = layer_b:cel(frame)
+                        if cel_a and cel_b then
+                            local a_pos = cel_a.position
+                            local b_pos = cel_b.position
+                            local a_w = cel_a.image.width
+                            local a_h = cel_a.image.height
+                            local b_w = cel_b.image.width
+                            local b_h = cel_b.image.height
+                            local overlap = a_pos.x < b_pos.x + b_w
+                                and a_pos.x + a_w > b_pos.x
+                                and a_pos.y < b_pos.y + b_h
+                                and a_pos.y + a_h > b_pos.y
+                            if overlap then
+                                analysis.overlaps = analysis.overlaps + 1
+                                local entry = {{
+                                    frame = fi,
+                                    a = layer_a.name,
+                                    b = layer_b.name
+                                }}
+                                if {report_bounds_flag} then
+                                    entry.a_bounds = {{ a_pos.x, a_pos.y, a_w, a_h }}
+                                    entry.b_bounds = {{ b_pos.x, b_pos.y, b_w, b_h }}
+                                end
+                                table.insert(overlaps, entry)
+                            end
                         end
                     end
                 end
             end
         end
     end)
+
+    for _, layer in ipairs(target_layers) do
+        if layer_activity[layer.name] == 0 then
+            table.insert(analysis.inactive_layers, layer.name)
+        end
+    end
 
     spr:saveAs(spr.filename)
     local parts = {{}}
@@ -627,9 +723,39 @@ async def animation_sanitize(
     table.insert(parts, "\\"ensured\\":" .. sanitized.ensured .. ",")
     table.insert(parts, "\\"out_of_range\\":" .. sanitized.out_of_range .. ",")
     table.insert(parts, "\\"opacity_set\\":" .. sanitized.opacity_set .. ",")
-    table.insert(parts, "\\"deleted\\":" .. sanitized.deleted)
+    table.insert(parts, "\\"deleted\\":" .. sanitized.deleted .. ",")
+    table.insert(parts, "\\"analysis\\":{{")
+    table.insert(parts, "\\"total_layers\\":" .. analysis.total_layers .. ",")
+    table.insert(parts, "\\"layers_checked\\":" .. analysis.layers_checked .. ",")
+    table.insert(parts, "\\"total_cels\\":" .. analysis.total_cels .. ",")
+    table.insert(parts, "\\"empty_frames\\":" .. analysis.empty_frames .. ",")
+    table.insert(parts, "\\"overlaps\\":" .. analysis.overlaps .. ",")
+    table.insert(parts, "\\"inactive_layers\\":[")
+    for i, name in ipairs(analysis.inactive_layers) do
+        table.insert(parts, '\\"' .. name .. '\\"')
+        if i < #analysis.inactive_layers then table.insert(parts, ",") end
+    end
+    table.insert(parts, "]")
     table.insert(parts, "}}")
-    return table.concat(parts)
+
+    if #overlaps > 0 then
+        table.insert(parts, ",\\"overlap_samples\\":[")
+        for i, entry in ipairs(overlaps) do
+            table.insert(parts, "{{\\"frame\\":" .. entry.frame .. ",\\"a\\":\\"" .. entry.a .. "\\",\\"b\\":\\"" .. entry.b .. "\\"")
+            if entry.a_bounds then
+                table.insert(parts, ",\\"a_bounds\\":[" .. entry.a_bounds[1] .. "," .. entry.a_bounds[2] .. "," .. entry.a_bounds[3] .. "," .. entry.a_bounds[4] .. "]")
+                table.insert(parts, ",\\"b_bounds\\":[" .. entry.b_bounds[1] .. "," .. entry.b_bounds[2] .. "," .. entry.b_bounds[3] .. "," .. entry.b_bounds[4] .. "]")
+            end
+            table.insert(parts, "}}")
+            if i < #overlaps then table.insert(parts, ",") end
+        end
+        table.insert(parts, "]")
+    end
+
+    table.insert(parts, "}}")
+    local output = table.concat(parts)
+    print(output)
+    return output
     """
 
     success, output = AsepriteCommand.execute_lua_script(script, filename)
