@@ -442,7 +442,8 @@ async def animation_sanitize(
     max_overlaps: int = 200,
     out_of_range_action: str = "set_opacity_zero",
     out_of_range_opacity: int = 0,
-    report_only: bool = False
+    report_only: bool = False,
+    include_stats: bool = True
 ) -> str:
     """Normalize animation consistency and optionally apply fixes.
 
@@ -521,6 +522,7 @@ async def animation_sanitize(
     end_frame_val = "nil" if end_frame is None else str(end_frame)
     report_only_flag = "true" if report_only else "false"
     report_bounds_flag = "true" if report_bounds else "false"
+    include_stats_flag = "true" if include_stats else "false"
 
     script = f"""
     local spr = app.activeSprite
@@ -575,11 +577,22 @@ async def animation_sanitize(
     }}
 
     local layer_activity = {{}}
+    local layer_stats = {{}}
     for _, layer in ipairs(target_layers) do
         layer_activity[layer.name] = 0
+        layer_stats[layer.name] = {{
+            frames_active = 0,
+            cel_count = 0,
+            full_canvas_cels = 0,
+            min_x = nil,
+            min_y = nil,
+            max_x = nil,
+            max_y = nil
+        }}
     end
 
     local overlaps = {{}}
+    local alerts = {{}}
 
     local function in_ranges(layer_name, frame_index)
         local ranges = ranges_by_layer[layer_name]
@@ -648,6 +661,24 @@ async def animation_sanitize(
                     has_cel = true
                     analysis.total_cels = analysis.total_cels + 1
                     layer_activity[layer.name] = (layer_activity[layer.name] or 0) + 1
+                    local stats = layer_stats[layer.name]
+                    if stats then
+                        stats.cel_count = stats.cel_count + 1
+                        stats.frames_active = stats.frames_active + 1
+                        local img = cel.image
+                        local pos = cel.position
+                        local x1 = pos.x
+                        local y1 = pos.y
+                        local x2 = pos.x + img.width
+                        local y2 = pos.y + img.height
+                        if img.width == spr.width and img.height == spr.height then
+                            stats.full_canvas_cels = stats.full_canvas_cels + 1
+                        end
+                        if stats.min_x == nil or x1 < stats.min_x then stats.min_x = x1 end
+                        if stats.min_y == nil or y1 < stats.min_y then stats.min_y = y1 end
+                        if stats.max_x == nil or x2 > stats.max_x then stats.max_x = x2 end
+                        if stats.max_y == nil or y2 > stats.max_y then stats.max_y = y2 end
+                    end
                     if not in_ranges(layer.name, fi) then
                         sanitized.out_of_range = sanitized.out_of_range + 1
                         if not {report_only_flag} then
@@ -737,6 +768,50 @@ async def animation_sanitize(
     end
     table.insert(parts, "]")
     table.insert(parts, "}}")
+
+    if {include_stats_flag} then
+        table.insert(parts, ",\\"layer_stats\\":{{")
+        local count = 0
+        for _, layer in ipairs(target_layers) do
+            local stats = layer_stats[layer.name]
+            if stats then
+                count = count + 1
+                table.insert(parts, '\\"' .. layer.name .. '\\":{{')
+                table.insert(parts, '\\"frames_active\\":' .. stats.frames_active .. ",")
+                table.insert(parts, '\\"cel_count\\":' .. stats.cel_count .. ",")
+                table.insert(parts, '\\"full_canvas_cels\\":' .. stats.full_canvas_cels .. ",")
+                if stats.min_x == nil then
+                    table.insert(parts, '\\"bounds\\":null')
+                else
+                    table.insert(parts, '\\"bounds\\":[' .. stats.min_x .. "," .. stats.min_y .. "," .. stats.max_x .. "," .. stats.max_y .. "]")
+                end
+                table.insert(parts, "}}")
+                if count < #target_layers then table.insert(parts, ",") end
+            end
+        end
+        table.insert(parts, "}}")
+    end
+
+    if analysis.empty_frames > 0 then
+        table.insert(alerts, "empty_frames_detected")
+    end
+    if sanitized.out_of_range > 0 then
+        table.insert(alerts, "cels_out_of_range")
+    end
+    for _, layer in ipairs(target_layers) do
+        local stats = layer_stats[layer.name]
+        if stats and stats.full_canvas_cels > 0 then
+            table.insert(alerts, "full_canvas_cels:" .. layer.name)
+        end
+    end
+    if #alerts > 0 then
+        table.insert(parts, ",\\"alerts\\":[")
+        for i, msg in ipairs(alerts) do
+            table.insert(parts, '\\"' .. msg .. '\\"')
+            if i < #alerts then table.insert(parts, ",") end
+        end
+        table.insert(parts, "]")
+    end
 
     if #overlaps > 0 then
         table.insert(parts, ",\\"overlap_samples\\":[")
