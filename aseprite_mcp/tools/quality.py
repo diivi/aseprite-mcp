@@ -427,3 +427,212 @@ async def audit_animation(
     if success:
         return output
     return f"Failed to audit animation: {output}"
+
+@mcp.tool()
+async def animation_sanitize(
+    filename: str,
+    start_frame: int = 1,
+    end_frame: int | None = None,
+    layer_names: List[str] | None = None,
+    layer_order: List[str] | None = None,
+    layer_frame_ranges: List[str] | None = None,
+    ensure_layers: List[str] | None = None,
+    out_of_range_action: str = "set_opacity_zero",
+    out_of_range_opacity: int = 0,
+    report_only: bool = False
+) -> str:
+    """Normalize animation consistency and optionally apply fixes.
+
+    layer_frame_ranges format: ["layer:1-8,17-24", "clouds:1-12"]
+    out_of_range_action: "set_opacity_zero", "delete_cels", "none"
+    """
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+    if start_frame < 1:
+        return "Start frame must be >= 1"
+    if out_of_range_action not in {"set_opacity_zero", "delete_cels", "none"}:
+        return "Unsupported out_of_range_action"
+    if out_of_range_opacity < 0 or out_of_range_opacity > 255:
+        return "out_of_range_opacity must be 0-255"
+
+    layers_lua = "nil"
+    if layer_names:
+        layers_lua = "{" + ",".join([f"\"{name}\"" for name in layer_names]) + "}"
+
+    order_lua = "nil"
+    if layer_order:
+        order_lua = "{" + ",".join([f"\"{name}\"" for name in layer_order]) + "}"
+
+    ensure_lua = "nil"
+    if ensure_layers:
+        ensure_lua = "{" + ",".join([f"\"{name}\"" for name in ensure_layers]) + "}"
+
+    ranges = {}
+    if layer_frame_ranges:
+        for entry in layer_frame_ranges:
+            if not entry or ":" not in entry:
+                continue
+            layer, ranges_part = entry.split(":", 1)
+            layer = layer.strip()
+            if not layer:
+                continue
+            spans = []
+            for span in ranges_part.split(","):
+                span = span.strip()
+                if "-" in span:
+                    left, right = span.split("-", 1)
+                    try:
+                        start = int(left)
+                        end = int(right)
+                    except ValueError:
+                        continue
+                    if start > 0 and end >= start:
+                        spans.append((start, end))
+            if spans:
+                ranges[layer] = spans
+    ranges_lua = "{"
+    for layer, spans in ranges.items():
+        span_list = ",".join([f"{{{s},{e}}}" for s, e in spans])
+        ranges_lua += f"[\"{layer}\"]={{{span_list}}},"
+    ranges_lua += "}"
+
+    end_frame_val = "nil" if end_frame is None else str(end_frame)
+    report_only_flag = "true" if report_only else "false"
+
+    script = f"""
+    local spr = app.activeSprite
+    if not spr then return "No active sprite" end
+
+    local start_idx = {start_frame}
+    local end_idx = {end_frame_val}
+    if end_idx == nil then end_idx = #spr.frames end
+    if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
+        return "Frame range out of bounds"
+    end
+
+    local target_names = {layers_lua}
+    local target_layers = {{}}
+    if target_names == nil then
+        for _, layer in ipairs(spr.layers) do
+            if not layer.isGroup then
+                table.insert(target_layers, layer)
+            end
+        end
+    else
+        for _, name in ipairs(target_names) do
+            for _, layer in ipairs(spr.layers) do
+                if layer.name == name then
+                    table.insert(target_layers, layer)
+                    break
+                end
+            end
+        end
+    end
+
+    local ranges_by_layer = {ranges_lua}
+    local order_names = {order_lua}
+    local ensure_names = {ensure_lua}
+
+    local sanitized = {{
+        reordered = false,
+        ensured = 0,
+        out_of_range = 0,
+        opacity_set = 0,
+        deleted = 0
+    }}
+
+    local function in_ranges(layer_name, frame_index)
+        local ranges = ranges_by_layer[layer_name]
+        if not ranges then return true end
+        for _, range in ipairs(ranges) do
+            if frame_index >= range[1] and frame_index <= range[2] then
+                return true
+            end
+        end
+        return false
+    end
+
+    app.transaction(function()
+        if order_names ~= nil then
+            local ordered = {{}}
+            local seen = {{}}
+            for _, name in ipairs(order_names) do
+                for _, layer in ipairs(spr.layers) do
+                    if layer.name == name and not layer.isGroup and not seen[layer] then
+                        table.insert(ordered, layer)
+                        seen[layer] = true
+                        break
+                    end
+                end
+            end
+            for _, layer in ipairs(spr.layers) do
+                if not layer.isGroup and not seen[layer] then
+                    table.insert(ordered, layer)
+                end
+            end
+            if not {report_only_flag} then
+                for idx, layer in ipairs(ordered) do
+                    layer.stackIndex = idx
+                end
+            end
+            sanitized.reordered = true
+        end
+
+        if ensure_names ~= nil then
+            for _, name in ipairs(ensure_names) do
+                for _, layer in ipairs(spr.layers) do
+                    if layer.name == name and not layer.isGroup then
+                        for fi = start_idx, end_idx do
+                            local frame = spr.frames[fi]
+                            local cel = layer:cel(frame)
+                            if not cel then
+                                sanitized.ensured = sanitized.ensured + 1
+                                if not {report_only_flag} then
+                                    local img = Image(spr.width, spr.height, spr.colorMode)
+                                    spr:newCel(layer, frame, img, Point(0, 0))
+                                end
+                            end
+                        end
+                        break
+                    end
+                end
+            end
+        end
+
+        for fi = start_idx, end_idx do
+            local frame = spr.frames[fi]
+            for _, layer in ipairs(target_layers) do
+                local cel = layer:cel(frame)
+                if cel and not in_ranges(layer.name, fi) then
+                    sanitized.out_of_range = sanitized.out_of_range + 1
+                    if not {report_only_flag} then
+                        if "{out_of_range_action}" == "delete_cels" then
+                            spr:deleteCel(cel)
+                            sanitized.deleted = sanitized.deleted + 1
+                        elseif "{out_of_range_action}" == "set_opacity_zero" then
+                            cel.opacity = {out_of_range_opacity}
+                            sanitized.opacity_set = sanitized.opacity_set + 1
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    spr:saveAs(spr.filename)
+    local parts = {{}}
+    table.insert(parts, "{{")
+    table.insert(parts, "\\"frames\\":{{\\"start\\":" .. start_idx .. ",\\"end\\":" .. end_idx .. "}},")
+    table.insert(parts, "\\"reordered\\":" .. tostring(sanitized.reordered) .. ",")
+    table.insert(parts, "\\"ensured\\":" .. sanitized.ensured .. ",")
+    table.insert(parts, "\\"out_of_range\\":" .. sanitized.out_of_range .. ",")
+    table.insert(parts, "\\"opacity_set\\":" .. sanitized.opacity_set .. ",")
+    table.insert(parts, "\\"deleted\\":" .. sanitized.deleted)
+    table.insert(parts, "}}")
+    return table.concat(parts)
+    """
+
+    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    if success:
+        return output
+    return f"Failed to sanitize animation: {output}"
