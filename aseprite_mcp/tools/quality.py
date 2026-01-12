@@ -160,3 +160,270 @@ async def validate_scene(
     if success:
         return output
     return f"Failed to validate scene: {output}"
+
+@mcp.tool()
+async def audit_animation(
+    filename: str,
+    start_frame: int = 1,
+    end_frame: int | None = None,
+    layer_names: List[str] | None = None,
+    overlap_pairs: List[str] | None = None,
+    layer_frame_ranges: List[str] | None = None,
+    report_cels: bool = False,
+    report_bounds: bool = False,
+    max_overlaps: int = 200,
+    max_out_of_range: int = 200
+) -> str:
+    """Audit animation frames for overlaps and out-of-range layer activity.
+
+    overlap_pairs format: ["layerA,layerB", "layerC:layerD"]
+    layer_frame_ranges format: ["layer:1-8,17-24", "clouds:1-12"]
+    """
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+    if start_frame < 1:
+        return "Start frame must be >= 1"
+    if max_overlaps < 0 or max_out_of_range < 0:
+        return "Max limits must be >= 0"
+
+    layers_lua = "nil"
+    if layer_names:
+        layers_lua = "{" + ",".join([f"\"{name}\"" for name in layer_names]) + "}"
+
+    pairs = []
+    if overlap_pairs:
+        for entry in overlap_pairs:
+            if not entry:
+                continue
+            if "," in entry:
+                left, right = entry.split(",", 1)
+            elif ":" in entry:
+                left, right = entry.split(":", 1)
+            else:
+                continue
+            left = left.strip()
+            right = right.strip()
+            if left and right:
+                pairs.append((left, right))
+    pairs_lua = "{" + ",".join([f"{{\"{a}\",\"{b}\"}}" for a, b in pairs]) + "}"
+
+    ranges = {}
+    if layer_frame_ranges:
+        for entry in layer_frame_ranges:
+            if not entry or ":" not in entry:
+                continue
+            layer, ranges_part = entry.split(":", 1)
+            layer = layer.strip()
+            if not layer:
+                continue
+            spans = []
+            for span in ranges_part.split(","):
+                span = span.strip()
+                if "-" in span:
+                    left, right = span.split("-", 1)
+                    try:
+                        start = int(left)
+                        end = int(right)
+                    except ValueError:
+                        continue
+                    if start > 0 and end >= start:
+                        spans.append((start, end))
+            if spans:
+                ranges[layer] = spans
+    ranges_lua = "{"
+    for layer, spans in ranges.items():
+        span_list = ",".join([f"{{{s},{e}}}" for s, e in spans])
+        ranges_lua += f"[\"{layer}\"]={{{span_list}}},"
+    ranges_lua += "}"
+
+    end_frame_val = "nil" if end_frame is None else str(end_frame)
+    report_cels_flag = "true" if report_cels else "false"
+    report_bounds_flag = "true" if report_bounds else "false"
+
+    script = f"""
+    local spr = app.activeSprite
+    if not spr then return "No active sprite" end
+
+    local start_idx = {start_frame}
+    local end_idx = {end_frame_val}
+    if end_idx == nil then end_idx = #spr.frames end
+    if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
+        return "Frame range out of bounds"
+    end
+
+    local target_names = {layers_lua}
+    local target_layers = {{}}
+    if target_names == nil then
+        for _, layer in ipairs(spr.layers) do
+            if not layer.isGroup then
+                table.insert(target_layers, layer)
+            end
+        end
+    else
+        for _, name in ipairs(target_names) do
+            for _, layer in ipairs(spr.layers) do
+                if layer.name == name then
+                    table.insert(target_layers, layer)
+                    break
+                end
+            end
+        end
+    end
+
+    local layer_map = {{}}
+    for _, layer in ipairs(target_layers) do
+        layer_map[layer.name] = layer
+    end
+
+    local pairs = {pairs_lua}
+    local ranges_by_layer = {ranges_lua}
+
+    local overlaps = {{}}
+    local out_of_range = {{}}
+    local cel_entries = {{}}
+    local total_cels = 0
+
+    local function esc(s)
+        local v = s:gsub("\\\\", "\\\\\\\\")
+        v = v:gsub('"', '\\"')
+        return v
+    end
+
+    local function in_ranges(layer_name, frame_index)
+        local ranges = ranges_by_layer[layer_name]
+        if not ranges then return true end
+        for _, range in ipairs(ranges) do
+            if frame_index >= range[1] and frame_index <= range[2] then
+                return true
+            end
+        end
+        return false
+    end
+
+    for fi = start_idx, end_idx do
+        local frame = spr.frames[fi]
+        local frame_cels = {{}}
+
+        for _, layer in ipairs(target_layers) do
+            local cel = layer:cel(frame)
+            if cel then
+                total_cels = total_cels + 1
+                local img = cel.image
+                local pos = cel.position
+                if {report_cels_flag} then
+                    if {report_bounds_flag} then
+                        table.insert(frame_cels, {{
+                            layer = layer.name,
+                            x = pos.x,
+                            y = pos.y,
+                            w = img.width,
+                            h = img.height
+                        }})
+                    else
+                        table.insert(frame_cels, {{ layer = layer.name }})
+                    end
+                end
+
+                if not in_ranges(layer.name, fi) then
+                    if #out_of_range < {max_out_of_range} then
+                        table.insert(out_of_range, {{ frame = fi, layer = layer.name }})
+                    end
+                end
+            end
+        end
+
+        if {report_cels_flag} then
+            table.insert(cel_entries, {{ frame = fi, cels = frame_cels }})
+        end
+
+        for _, pair in ipairs(pairs) do
+            if #overlaps >= {max_overlaps} then break end
+            local layer_a = layer_map[pair[1]]
+            local layer_b = layer_map[pair[2]]
+            if layer_a and layer_b then
+                local cel_a = layer_a:cel(frame)
+                local cel_b = layer_b:cel(frame)
+                if cel_a and cel_b then
+                    local a_pos = cel_a.position
+                    local b_pos = cel_b.position
+                    local a_w = cel_a.image.width
+                    local a_h = cel_a.image.height
+                    local b_w = cel_b.image.width
+                    local b_h = cel_b.image.height
+                    local overlap = a_pos.x < b_pos.x + b_w
+                        and a_pos.x + a_w > b_pos.x
+                        and a_pos.y < b_pos.y + b_h
+                        and a_pos.y + a_h > b_pos.y
+                    if overlap then
+                        local entry = {{
+                            frame = fi,
+                            a = layer_a.name,
+                            b = layer_b.name
+                        }}
+                        if {report_bounds_flag} then
+                            entry.a_bounds = {{ a_pos.x, a_pos.y, a_w, a_h }}
+                            entry.b_bounds = {{ b_pos.x, b_pos.y, b_w, b_h }}
+                        end
+                        table.insert(overlaps, entry)
+                    end
+                end
+            end
+        end
+    end
+
+    local parts = {{}}
+    table.insert(parts, "{{")
+    table.insert(parts, "\\"frames\\":{{\\"start\\":" .. start_idx .. ",\\"end\\":" .. end_idx .. "}},")
+    table.insert(parts, "\\"summary\\":{{")
+    table.insert(parts, "\\"total_layers\\":" .. #spr.layers .. ",")
+    table.insert(parts, "\\"layers_checked\\":" .. #target_layers .. ",")
+    table.insert(parts, "\\"total_cels\\":" .. total_cels .. ",")
+    table.insert(parts, "\\"overlaps\\":" .. #overlaps .. ",")
+    table.insert(parts, "\\"out_of_range\\":" .. #out_of_range)
+    table.insert(parts, "}},")
+
+    table.insert(parts, "\\"overlaps\\":[")
+    for i, entry in ipairs(overlaps) do
+        table.insert(parts, "{{\\"frame\\":" .. entry.frame .. ",\\"a\\":\\"" .. esc(entry.a) .. "\\",\\"b\\":\\"" .. esc(entry.b) .. "\\"")
+        if entry.a_bounds then
+            table.insert(parts, ",\\"a_bounds\\":[" .. entry.a_bounds[1] .. "," .. entry.a_bounds[2] .. "," .. entry.a_bounds[3] .. "," .. entry.a_bounds[4] .. "]")
+            table.insert(parts, ",\\"b_bounds\\":[" .. entry.b_bounds[1] .. "," .. entry.b_bounds[2] .. "," .. entry.b_bounds[3] .. "," .. entry.b_bounds[4] .. "]")
+        end
+        table.insert(parts, "}}")
+        if i < #overlaps then table.insert(parts, ",") end
+    end
+    table.insert(parts, "],")
+
+    table.insert(parts, "\\"out_of_range\\":[")
+    for i, entry in ipairs(out_of_range) do
+        table.insert(parts, "{{\\"frame\\":" .. entry.frame .. ",\\"layer\\":\\"" .. esc(entry.layer) .. "\\"}}")
+        if i < #out_of_range then table.insert(parts, ",") end
+    end
+    table.insert(parts, "]")
+
+    if {report_cels_flag} then
+        table.insert(parts, ",\\"cels\\":[")
+        for i, entry in ipairs(cel_entries) do
+            table.insert(parts, "{{\\"frame\\":" .. entry.frame .. ",\\"cels\\":[")
+            for j, cel in ipairs(entry.cels) do
+                if cel.w then
+                    table.insert(parts, "{{\\"layer\\":\\"" .. esc(cel.layer) .. "\\",\\"x\\":" .. cel.x .. ",\\"y\\":" .. cel.y .. ",\\"w\\":" .. cel.w .. ",\\"h\\":" .. cel.h .. "}}")
+                else
+                    table.insert(parts, "{{\\"layer\\":\\"" .. esc(cel.layer) .. "\\"}}")
+                end
+                if j < #entry.cels then table.insert(parts, ",") end
+            end
+            table.insert(parts, "]}}")
+            if i < #cel_entries then table.insert(parts, ",") end
+        end
+        table.insert(parts, "]")
+    end
+
+    table.insert(parts, "}}")
+    return table.concat(parts)
+    """
+
+    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    if success:
+        return output
+    return f"Failed to audit animation: {output}"
