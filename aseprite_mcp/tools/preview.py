@@ -1,10 +1,27 @@
 import os
 import subprocess
+import sys
 import tempfile
+import signal
 from .. import mcp
 
 def _pid_path(port: int) -> str:
     return os.path.join(tempfile.gettempdir(), f"aseprite_mcp_preview_{port}.pid")
+
+def _pid_is_running(pid: int) -> bool:
+    try:
+        if os.name == "nt":
+            result = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}"],
+                check=False,
+                capture_output=True,
+                text=True
+            )
+            return str(pid) in result.stdout
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
 
 @mcp.tool()
 async def start_preview_server(directory: str, port: int = 8000) -> str:
@@ -19,15 +36,22 @@ async def start_preview_server(directory: str, port: int = 8000) -> str:
 
     pid_file = _pid_path(port)
     if os.path.exists(pid_file):
-        return f"Preview server may already be running on port {port}"
+        try:
+            with open(pid_file, "r", encoding="utf-8") as f:
+                pid = int(f.read().strip())
+            if _pid_is_running(pid):
+                return f"Preview server may already be running on port {port}"
+        except Exception:
+            pass
+        os.remove(pid_file)
 
-    python_exe = os.path.join(os.path.dirname(os.__file__), "python.exe")
-    if not os.path.exists(python_exe):
-        python_exe = "python"
-
-    args = [python_exe, "-m", "http.server", str(port), "--directory", directory]
-    creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
-    proc = subprocess.Popen(args, cwd=directory, creationflags=creationflags)
+    args = [sys.executable, "-m", "http.server", str(port), "--directory", directory]
+    popen_kwargs = {"cwd": directory, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    if os.name == "nt":
+        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+    else:
+        popen_kwargs["start_new_session"] = True
+    proc = subprocess.Popen(args, **popen_kwargs)
     with open(pid_file, "w", encoding="utf-8") as f:
         f.write(str(proc.pid))
 
@@ -45,10 +69,13 @@ async def stop_preview_server(port: int = 8000) -> str:
         return f"No preview server PID found for port {port}"
 
     with open(pid_file, "r", encoding="utf-8") as f:
-        pid = f.read().strip()
+        pid = int(f.read().strip())
 
     try:
-        subprocess.run(["taskkill", "/PID", pid, "/T", "/F"], check=False, capture_output=True)
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], check=False, capture_output=True)
+        else:
+            os.kill(pid, signal.SIGTERM)
     finally:
         os.remove(pid_file)
 
