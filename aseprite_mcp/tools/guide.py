@@ -11,9 +11,9 @@ async def animation_workflow_guide(use_case: str = "character") -> str:
             "Use propagate_cels for static layers (body, clothing) across the range.",
             "Animate motion with tween_cel_positions or offset_cel_positions, avoid redrawing.",
             "Add secondary motion on separate layers (hair, accessories) for readability.",
-            "Keep layers deterministic: set_layer + *_at drawing tools.",
+            "Keep layers deterministic: set_layer_visibility/opacity + *_at drawing tools.",
             "Finalize with set_tag for loop ranges and export_sprite for preview.",
-            "Run quality_check.py before delivery to ensure no missing layers/cels.",
+            "Run audit_animation or animation_sanitize to validate layer coverage and overlaps.",
         ]
     elif use_case == "environment":
         bullets = [
@@ -23,7 +23,7 @@ async def animation_workflow_guide(use_case: str = "character") -> str:
             "Use apply_gradient_rect and palette tools for consistent color mood.",
             "Copy reusable assets across scenes with copy_layers_between_sprites.",
             "Tag loops and export GIFs to validate pacing.",
-            "Run quality_check.py before delivery to ensure no missing layers/cels.",
+            "Run audit_animation or animation_sanitize to validate layer coverage and overlaps.",
         ]
     else:
         bullets = [
@@ -32,7 +32,7 @@ async def animation_workflow_guide(use_case: str = "character") -> str:
             "Use layer-targeted tools (*_at) to avoid active-cel drift.",
             "Propagate static layers across the frame range.",
             "Use tags for loop ranges and export previews early.",
-            "Run quality_check.py before delivery to ensure no missing layers/cels.",
+            "Run audit_animation or animation_sanitize to validate layer coverage and overlaps.",
         ]
 
     lines = [header, f"Use case: {use_case}"]
