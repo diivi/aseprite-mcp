@@ -279,6 +279,8 @@ async def audit_animation(
     local ranges_by_layer = {ranges_lua}
 
     local overlaps = {{}}
+    local overlaps_total = 0
+    local overlaps_truncated = false
     local out_of_range = {{}}
     local cel_entries = {{}}
     local total_cels = 0
@@ -337,7 +339,6 @@ async def audit_animation(
         end
 
         for _, pair in ipairs(pairs) do
-            if #overlaps >= {max_overlaps} then break end
             local layer_a = layer_map[pair[1]]
             local layer_b = layer_map[pair[2]]
             if layer_a and layer_b then
@@ -355,16 +356,21 @@ async def audit_animation(
                         and a_pos.y < b_pos.y + b_h
                         and a_pos.y + a_h > b_pos.y
                     if overlap then
-                        local entry = {{
-                            frame = fi,
-                            a = layer_a.name,
-                            b = layer_b.name
-                        }}
-                        if {report_bounds_flag} then
-                            entry.a_bounds = {{ a_pos.x, a_pos.y, a_w, a_h }}
-                            entry.b_bounds = {{ b_pos.x, b_pos.y, b_w, b_h }}
+                        overlaps_total = overlaps_total + 1
+                        if #overlaps < {max_overlaps} then
+                            local entry = {{
+                                frame = fi,
+                                a = layer_a.name,
+                                b = layer_b.name
+                            }}
+                            if {report_bounds_flag} then
+                                entry.a_bounds = {{ a_pos.x, a_pos.y, a_w, a_h }}
+                                entry.b_bounds = {{ b_pos.x, b_pos.y, b_w, b_h }}
+                            end
+                            table.insert(overlaps, entry)
+                        else
+                            overlaps_truncated = true
                         end
-                        table.insert(overlaps, entry)
                     end
                 end
             end
@@ -379,6 +385,8 @@ async def audit_animation(
     table.insert(parts, "\\"layers_checked\\":" .. #target_layers .. ",")
     table.insert(parts, "\\"total_cels\\":" .. total_cels .. ",")
     table.insert(parts, "\\"overlaps\\":" .. #overlaps .. ",")
+    table.insert(parts, "\\"overlaps_total\\":" .. overlaps_total .. ",")
+    table.insert(parts, "\\"overlaps_truncated\\":" .. tostring(overlaps_truncated) .. ",")
     table.insert(parts, "\\"out_of_range\\":" .. #out_of_range)
     table.insert(parts, "}},")
 
@@ -440,6 +448,7 @@ async def animation_sanitize(
     overlap_pairs: List[str] | None = None,
     report_bounds: bool = False,
     max_overlaps: int = 200,
+    ignore_full_canvas_overlaps: bool = True,
     out_of_range_action: str = "set_opacity_zero",
     out_of_range_opacity: int = 0,
     report_only: bool = False,
@@ -449,6 +458,7 @@ async def animation_sanitize(
 
     layer_frame_ranges format: ["layer:1-8,17-24", "clouds:1-12"]
     out_of_range_action: "set_opacity_zero", "delete_cels", "none"
+    ignore_full_canvas_overlaps: skip overlap checks when a cel is full canvas
     """
     if not os.path.exists(filename):
         return f"File {filename} not found"
@@ -523,6 +533,7 @@ async def animation_sanitize(
     report_only_flag = "true" if report_only else "false"
     report_bounds_flag = "true" if report_bounds else "false"
     include_stats_flag = "true" if include_stats else "false"
+    ignore_full_canvas_flag = "true" if ignore_full_canvas_overlaps else "false"
 
     script = f"""
     local spr = app.activeSprite
@@ -592,7 +603,14 @@ async def animation_sanitize(
     end
 
     local overlaps = {{}}
+    local overlaps_total = 0
+    local overlaps_truncated = false
     local alerts = {{}}
+    local changed = false
+    local layer_map = {{}}
+    for _, layer in ipairs(target_layers) do
+        layer_map[layer.name] = layer
+    end
 
     local function in_ranges(layer_name, frame_index)
         local ranges = ranges_by_layer[layer_name]
@@ -607,6 +625,21 @@ async def animation_sanitize(
 
     app.transaction(function()
         if order_names ~= nil then
+            local has_groups = false
+            local parent_ref = nil
+            for _, layer in ipairs(spr.layers) do
+                if layer.isGroup then
+                    has_groups = true
+                end
+            end
+            for _, layer in ipairs(target_layers) do
+                if parent_ref == nil then
+                    parent_ref = layer.parent
+                elseif layer.parent ~= parent_ref then
+                    has_groups = true
+                    break
+                end
+            end
             local ordered = {{}}
             local seen = {{}}
             for _, name in ipairs(order_names) do
@@ -623,12 +656,13 @@ async def animation_sanitize(
                     table.insert(ordered, layer)
                 end
             end
-            if not {report_only_flag} then
+            if not has_groups and not {report_only_flag} then
                 for idx, layer in ipairs(ordered) do
                     layer.stackIndex = idx
                 end
+                changed = true
             end
-            sanitized.reordered = true
+            sanitized.reordered = not has_groups
         end
 
         if ensure_names ~= nil then
@@ -643,6 +677,7 @@ async def animation_sanitize(
                                 if not {report_only_flag} then
                                     local img = Image(spr.width, spr.height, spr.colorMode)
                                     spr:newCel(layer, frame, img, Point(0, 0))
+                                    changed = true
                                 end
                             end
                         end
@@ -685,9 +720,11 @@ async def animation_sanitize(
                             if "{out_of_range_action}" == "delete_cels" then
                                 spr:deleteCel(cel)
                                 sanitized.deleted = sanitized.deleted + 1
+                                changed = true
                             elseif "{out_of_range_action}" == "set_opacity_zero" then
                                 cel.opacity = {out_of_range_opacity}
                                 sanitized.opacity_set = sanitized.opacity_set + 1
+                                changed = true
                             end
                         end
                     end
@@ -699,39 +736,50 @@ async def animation_sanitize(
 
             if #pairs > 0 then
                 for _, pair in ipairs(pairs) do
-                    if #overlaps >= {max_overlaps} then break end
-                    local layer_a = nil
-                    local layer_b = nil
-                    for _, layer in ipairs(target_layers) do
-                        if layer.name == pair[1] then layer_a = layer end
-                        if layer.name == pair[2] then layer_b = layer end
-                    end
+                    local layer_a = layer_map[pair[1]]
+                    local layer_b = layer_map[pair[2]]
                     if layer_a and layer_b then
                         local cel_a = layer_a:cel(frame)
                         local cel_b = layer_b:cel(frame)
                         if cel_a and cel_b then
-                            local a_pos = cel_a.position
-                            local b_pos = cel_b.position
-                            local a_w = cel_a.image.width
-                            local a_h = cel_a.image.height
-                            local b_w = cel_b.image.width
-                            local b_h = cel_b.image.height
-                            local overlap = a_pos.x < b_pos.x + b_w
-                                and a_pos.x + a_w > b_pos.x
-                                and a_pos.y < b_pos.y + b_h
-                                and a_pos.y + a_h > b_pos.y
-                            if overlap then
-                                analysis.overlaps = analysis.overlaps + 1
-                                local entry = {{
-                                    frame = fi,
-                                    a = layer_a.name,
-                                    b = layer_b.name
-                                }}
-                                if {report_bounds_flag} then
-                                    entry.a_bounds = {{ a_pos.x, a_pos.y, a_w, a_h }}
-                                    entry.b_bounds = {{ b_pos.x, b_pos.y, b_w, b_h }}
+                            local skip_overlap = false
+                            if {ignore_full_canvas_flag} then
+                                if cel_a.image.width == spr.width and cel_a.image.height == spr.height then
+                                    skip_overlap = true
                                 end
-                                table.insert(overlaps, entry)
+                                if cel_b.image.width == spr.width and cel_b.image.height == spr.height then
+                                    skip_overlap = true
+                                end
+                            end
+                            if not skip_overlap then
+                                local a_pos = cel_a.position
+                                local b_pos = cel_b.position
+                                local a_w = cel_a.image.width
+                                local a_h = cel_a.image.height
+                                local b_w = cel_b.image.width
+                                local b_h = cel_b.image.height
+                                local overlap = a_pos.x < b_pos.x + b_w
+                                    and a_pos.x + a_w > b_pos.x
+                                    and a_pos.y < b_pos.y + b_h
+                                    and a_pos.y + a_h > b_pos.y
+                                if overlap then
+                                    analysis.overlaps = analysis.overlaps + 1
+                                    overlaps_total = overlaps_total + 1
+                                    if #overlaps < {max_overlaps} then
+                                        local entry = {{
+                                            frame = fi,
+                                            a = layer_a.name,
+                                            b = layer_b.name
+                                        }}
+                                        if {report_bounds_flag} then
+                                            entry.a_bounds = {{ a_pos.x, a_pos.y, a_w, a_h }}
+                                            entry.b_bounds = {{ b_pos.x, b_pos.y, b_w, b_h }}
+                                        end
+                                        table.insert(overlaps, entry)
+                                    else
+                                        overlaps_truncated = true
+                                    end
+                                end
                             end
                         end
                     end
@@ -746,7 +794,9 @@ async def animation_sanitize(
         end
     end
 
-    spr:saveAs(spr.filename)
+    if not {report_only_flag} and changed then
+        spr:saveAs(spr.filename)
+    end
     local parts = {{}}
     table.insert(parts, "{{")
     table.insert(parts, "\\"frames\\":{{\\"start\\":" .. start_idx .. ",\\"end\\":" .. end_idx .. "}},")
@@ -761,6 +811,8 @@ async def animation_sanitize(
     table.insert(parts, "\\"total_cels\\":" .. analysis.total_cels .. ",")
     table.insert(parts, "\\"empty_frames\\":" .. analysis.empty_frames .. ",")
     table.insert(parts, "\\"overlaps\\":" .. analysis.overlaps .. ",")
+    table.insert(parts, "\\"overlaps_total\\":" .. overlaps_total .. ",")
+    table.insert(parts, "\\"overlaps_truncated\\":" .. tostring(overlaps_truncated) .. ",")
     table.insert(parts, "\\"inactive_layers\\":[")
     for i, name in ipairs(analysis.inactive_layers) do
         table.insert(parts, '\\"' .. name .. '\\"')
