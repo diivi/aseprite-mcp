@@ -4,6 +4,55 @@ from typing import List
 from ..core.commands import AsepriteCommand
 from .. import mcp
 
+def _parse_layer_frame_ranges(layer_frame_ranges: List[str] | None) -> str:
+    ranges = {}
+    if layer_frame_ranges:
+        for entry in layer_frame_ranges:
+            if not entry or ":" not in entry:
+                continue
+            layer, ranges_part = entry.split(":", 1)
+            layer = layer.strip()
+            if not layer:
+                continue
+            spans = []
+            for span in ranges_part.split(","):
+                span = span.strip()
+                if "-" in span:
+                    left, right = span.split("-", 1)
+                    try:
+                        start = int(left)
+                        end = int(right)
+                    except ValueError:
+                        continue
+                    if start > 0 and end >= start:
+                        spans.append((start, end))
+            if spans:
+                ranges[layer] = spans
+    ranges_lua = "{"
+    for layer, spans in ranges.items():
+        span_list = ",".join([f"{{{s},{e}}}" for s, e in spans])
+        ranges_lua += f"[\"{layer}\"]={{{span_list}}},"
+    ranges_lua += "}"
+    return ranges_lua
+
+def _parse_overlap_pairs(overlap_pairs: List[str] | None) -> str:
+    pairs = []
+    if overlap_pairs:
+        for entry in overlap_pairs:
+            if not entry:
+                continue
+            if "," in entry:
+                left, right = entry.split(",", 1)
+            elif ":" in entry:
+                left, right = entry.split(":", 1)
+            else:
+                continue
+            left = left.strip()
+            right = right.strip()
+            if left and right:
+                pairs.append((left, right))
+    return "{" + ",".join([f"{{\"{a}\",\"{b}\"}}" for a, b in pairs]) + "}"
+
 @mcp.tool()
 async def ensure_layers_present(
     filename: str,
@@ -178,11 +227,14 @@ async def audit_animation(
 
     overlap_pairs format: ["layerA,layerB", "layerC:layerD"]
     layer_frame_ranges format: ["layer:1-8,17-24", "clouds:1-12"]
+    Returns JSON for AI consumption (summary, overlaps, out_of_range, optional cels).
     """
     if not os.path.exists(filename):
         return f"File {filename} not found"
     if start_frame < 1:
         return "Start frame must be >= 1"
+    if end_frame is not None and end_frame < start_frame:
+        return "End frame must be >= start frame"
     if max_overlaps < 0 or max_out_of_range < 0:
         return "Max limits must be >= 0"
 
@@ -190,51 +242,8 @@ async def audit_animation(
     if layer_names:
         layers_lua = "{" + ",".join([f"\"{name}\"" for name in layer_names]) + "}"
 
-    pairs = []
-    if overlap_pairs:
-        for entry in overlap_pairs:
-            if not entry:
-                continue
-            if "," in entry:
-                left, right = entry.split(",", 1)
-            elif ":" in entry:
-                left, right = entry.split(":", 1)
-            else:
-                continue
-            left = left.strip()
-            right = right.strip()
-            if left and right:
-                pairs.append((left, right))
-    pairs_lua = "{" + ",".join([f"{{\"{a}\",\"{b}\"}}" for a, b in pairs]) + "}"
-
-    ranges = {}
-    if layer_frame_ranges:
-        for entry in layer_frame_ranges:
-            if not entry or ":" not in entry:
-                continue
-            layer, ranges_part = entry.split(":", 1)
-            layer = layer.strip()
-            if not layer:
-                continue
-            spans = []
-            for span in ranges_part.split(","):
-                span = span.strip()
-                if "-" in span:
-                    left, right = span.split("-", 1)
-                    try:
-                        start = int(left)
-                        end = int(right)
-                    except ValueError:
-                        continue
-                    if start > 0 and end >= start:
-                        spans.append((start, end))
-            if spans:
-                ranges[layer] = spans
-    ranges_lua = "{"
-    for layer, spans in ranges.items():
-        span_list = ",".join([f"{{{s},{e}}}" for s, e in spans])
-        ranges_lua += f"[\"{layer}\"]={{{span_list}}},"
-    ranges_lua += "}"
+    pairs_lua = _parse_overlap_pairs(overlap_pairs)
+    ranges_lua = _parse_layer_frame_ranges(layer_frame_ranges)
 
     end_frame_val = "nil" if end_frame is None else str(end_frame)
     report_cels_flag = "true" if report_cels else "false"
@@ -459,11 +468,14 @@ async def animation_sanitize(
     layer_frame_ranges format: ["layer:1-8,17-24", "clouds:1-12"]
     out_of_range_action: "set_opacity_zero", "delete_cels", "none"
     ignore_full_canvas_overlaps: skip overlap checks when a cel is full canvas
+    Returns JSON for AI consumption (summary, layer_stats, alerts, overlaps).
     """
     if not os.path.exists(filename):
         return f"File {filename} not found"
     if start_frame < 1:
         return "Start frame must be >= 1"
+    if end_frame is not None and end_frame < start_frame:
+        return "End frame must be >= start frame"
     if max_overlaps < 0:
         return "max_overlaps must be >= 0"
     if out_of_range_action not in {"set_opacity_zero", "delete_cels", "none"}:
@@ -483,51 +495,8 @@ async def animation_sanitize(
     if ensure_layers:
         ensure_lua = "{" + ",".join([f"\"{name}\"" for name in ensure_layers]) + "}"
 
-    ranges = {}
-    if layer_frame_ranges:
-        for entry in layer_frame_ranges:
-            if not entry or ":" not in entry:
-                continue
-            layer, ranges_part = entry.split(":", 1)
-            layer = layer.strip()
-            if not layer:
-                continue
-            spans = []
-            for span in ranges_part.split(","):
-                span = span.strip()
-                if "-" in span:
-                    left, right = span.split("-", 1)
-                    try:
-                        start = int(left)
-                        end = int(right)
-                    except ValueError:
-                        continue
-                    if start > 0 and end >= start:
-                        spans.append((start, end))
-            if spans:
-                ranges[layer] = spans
-    ranges_lua = "{"
-    for layer, spans in ranges.items():
-        span_list = ",".join([f"{{{s},{e}}}" for s, e in spans])
-        ranges_lua += f"[\"{layer}\"]={{{span_list}}},"
-    ranges_lua += "}"
-
-    pairs = []
-    if overlap_pairs:
-        for entry in overlap_pairs:
-            if not entry:
-                continue
-            if "," in entry:
-                left, right = entry.split(",", 1)
-            elif ":" in entry:
-                left, right = entry.split(":", 1)
-            else:
-                continue
-            left = left.strip()
-            right = right.strip()
-            if left and right:
-                pairs.append((left, right))
-    pairs_lua = "{" + ",".join([f"{{\"{a}\",\"{b}\"}}" for a, b in pairs]) + "}"
+    ranges_lua = _parse_layer_frame_ranges(layer_frame_ranges)
+    pairs_lua = _parse_overlap_pairs(overlap_pairs)
 
     end_frame_val = "nil" if end_frame is None else str(end_frame)
     report_only_flag = "true" if report_only else "false"
