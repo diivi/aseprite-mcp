@@ -3,6 +3,20 @@ from typing import List
 from ..core.commands import AsepriteCommand
 from .. import mcp
 
+def _parse_hex_color(value: str) -> tuple[int, int, int] | None:
+    if not value:
+        return None
+    hex_color = value.lstrip("#")
+    if len(hex_color) != 6:
+        return None
+    try:
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+    except ValueError:
+        return None
+    return r, g, b
+
 @mcp.tool()
 async def get_palette(filename: str) -> str:
     """Get the active sprite palette as a JSON array of hex colors."""
@@ -46,11 +60,10 @@ async def set_palette(filename: str, colors: List[str]) -> str:
 
     rgb_list = []
     for color in colors:
-        hex_color = color.lstrip("#")
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-        rgb_list.append((r, g, b))
+        rgb = _parse_hex_color(color)
+        if rgb is None:
+            return "Colors must use #RRGGBB values"
+        rgb_list.append(rgb)
 
     palette_entries = "\n".join(
         [f"    pal:setColor({i}, Color({r}, {g}, {b}))" for i, (r, g, b) in enumerate(rgb_list)]
@@ -90,16 +103,12 @@ async def remap_colors_in_cel_range(
 
     parsed = []
     for m in mappings:
-        src = (m.get("from") or "").lstrip("#")
-        dst = (m.get("to") or "").lstrip("#")
-        if len(src) != 6 or len(dst) != 6:
+        src = _parse_hex_color(m.get("from") or "")
+        dst = _parse_hex_color(m.get("to") or "")
+        if src is None or dst is None:
             return "Mappings must use #RRGGBB colors"
-        sr = int(src[0:2], 16)
-        sg = int(src[2:4], 16)
-        sb = int(src[4:6], 16)
-        dr = int(dst[0:2], 16)
-        dg = int(dst[2:4], 16)
-        db = int(dst[4:6], 16)
+        sr, sg, sb = src
+        dr, dg, db = dst
         parsed.append((sr, sg, sb, dr, dg, db))
 
     mapping_lua = ", ".join(

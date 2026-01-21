@@ -11,6 +11,9 @@ async def create_canvas(width: int, height: int, filename: str = "canvas.aseprit
         height: Height of the canvas in pixels
         filename: Name of the output file (default: canvas.aseprite)
     """
+    if width <= 0 or height <= 0:
+        return "Width and height must be > 0"
+
     safe_path = filename.replace("\\", "/")
     script = f"""
     local spr = Sprite({width}, {height})
@@ -131,6 +134,8 @@ async def set_frame_duration(filename: str, frame_index: int, duration_ms: int) 
     """
     if not os.path.exists(filename):
         return f"File {filename} not found"
+    if duration_ms <= 0:
+        return "Duration must be > 0"
 
     script = f"""
     local spr = app.activeSprite
