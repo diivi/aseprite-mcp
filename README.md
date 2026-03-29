@@ -66,3 +66,8 @@ If installed, the binary will be at `/opt/steamapps/common/Aseprite/aseprite` an
   }
 }
 ```
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/diivi-aseprite-mcp).
+
