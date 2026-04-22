@@ -6,6 +6,18 @@ import dotenv
 _ENV_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 dotenv.load_dotenv(dotenv_path=_ENV_PATH)
 
+
+def lua_escape(s: str) -> str:
+    """Escape a string for safe embedding inside a Lua double-quoted string literal."""
+    return (
+        s.replace("\\", "\\\\")
+         .replace('"', '\\"')
+         .replace("\n", "\\n")
+         .replace("\r", "\\r")
+         .replace("\0", "\\0")
+    )
+
+
 class AsepriteCommand:
     """Helper class for running Aseprite commands."""
     
@@ -20,7 +32,6 @@ class AsepriteCommand:
             tuple: (success, output) where success is a boolean and output is the command output
         """
         try:
-            dotenv.load_dotenv(dotenv_path=_ENV_PATH)
             cmd = [os.getenv('ASEPRITE_PATH', 'aseprite')] + args
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             return True, result.stdout

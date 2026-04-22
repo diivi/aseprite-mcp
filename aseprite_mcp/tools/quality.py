@@ -1,7 +1,7 @@
 import os
 import json
 from typing import List
-from ..core.commands import AsepriteCommand
+from ..core.commands import AsepriteCommand, lua_escape
 from .. import mcp
 
 def _parse_layer_frame_ranges(layer_frame_ranges: List[str] | None) -> str:
@@ -67,7 +67,7 @@ async def ensure_layers_present(
         return "Layer names list cannot be empty"
 
     end_frame_val = "nil" if end_frame is None else str(end_frame)
-    layers_lua = "{" + ",".join([f"\"{name}\"" for name in layer_names]) + "}"
+    layers_lua = "{" + ",".join([f"\"{lua_escape(name)}\"" for name in layer_names]) + "}"
 
     script = """
     local spr = app.activeSprite
@@ -141,7 +141,7 @@ async def validate_scene(
         return "Required layers list cannot be empty"
 
     end_frame_val = "nil" if end_frame is None else str(end_frame)
-    layers_lua = "{" + ",".join([f"\"{name}\"" for name in required_layers]) + "}"
+    layers_lua = "{" + ",".join([f"\"{lua_escape(name)}\"" for name in required_layers]) + "}"
 
     script = """
     local spr = app.activeSprite
@@ -240,7 +240,7 @@ async def audit_animation(
 
     layers_lua = "nil"
     if layer_names:
-        layers_lua = "{" + ",".join([f"\"{name}\"" for name in layer_names]) + "}"
+        layers_lua = "{" + ",".join([f"\"{lua_escape(name)}\"" for name in layer_names]) + "}"
 
     pairs_lua = _parse_overlap_pairs(overlap_pairs)
     ranges_lua = _parse_layer_frame_ranges(layer_frame_ranges)
@@ -485,15 +485,15 @@ async def animation_sanitize(
 
     layers_lua = "nil"
     if layer_names:
-        layers_lua = "{" + ",".join([f"\"{name}\"" for name in layer_names]) + "}"
+        layers_lua = "{" + ",".join([f"\"{lua_escape(name)}\"" for name in layer_names]) + "}"
 
     order_lua = "nil"
     if layer_order:
-        order_lua = "{" + ",".join([f"\"{name}\"" for name in layer_order]) + "}"
+        order_lua = "{" + ",".join([f"\"{lua_escape(name)}\"" for name in layer_order]) + "}"
 
     ensure_lua = "nil"
     if ensure_layers:
-        ensure_lua = "{" + ",".join([f"\"{name}\"" for name in ensure_layers]) + "}"
+        ensure_lua = "{" + ",".join([f"\"{lua_escape(name)}\"" for name in ensure_layers]) + "}"
 
     ranges_lua = _parse_layer_frame_ranges(layer_frame_ranges)
     pairs_lua = _parse_overlap_pairs(overlap_pairs)

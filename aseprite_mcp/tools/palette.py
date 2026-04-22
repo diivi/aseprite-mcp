@@ -1,6 +1,6 @@
 import os
 from typing import List
-from ..core.commands import AsepriteCommand
+from ..core.commands import AsepriteCommand, lua_escape
 from .. import mcp
 
 def _parse_hex_color(value: str) -> tuple[int, int, int] | None:
@@ -116,6 +116,7 @@ async def remap_colors_in_cel_range(
     )
     create_flag = "true" if create_missing_cels else "false"
     source_idx = "nil" if source_frame_index is None else str(source_frame_index)
+    safe_layer_name = lua_escape(layer_name)
 
     script = f"""
     local spr = app.activeSprite
@@ -129,7 +130,7 @@ async def remap_colors_in_cel_range(
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then target = layer break end
+        if layer.name == "{safe_layer_name}" then target = layer break end
     end
     if not target then return "Layer not found" end
 

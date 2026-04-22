@@ -1,5 +1,5 @@
 import os
-from ..core.commands import AsepriteCommand
+from ..core.commands import AsepriteCommand, lua_escape
 from .. import mcp
 
 @mcp.tool()
@@ -13,8 +13,10 @@ async def create_canvas(width: int, height: int, filename: str = "canvas.aseprit
     """
     if width <= 0 or height <= 0:
         return "Width and height must be > 0"
+    if ".." in filename:
+        return "Invalid filename: path traversal not allowed"
 
-    safe_path = filename.replace("\\", "/")
+    safe_path = lua_escape(filename.replace("\\", "/"))
     script = f"""
     local spr = Sprite({width}, {height})
     spr:saveAs("{safe_path}")
@@ -39,13 +41,14 @@ async def add_layer(filename: str, layer_name: str) -> str:
     if not os.path.exists(filename):
         return f"File {filename} not found"
     
+    safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
     if not spr then return "No active sprite" end
-    
+
     app.transaction(function()
         spr:newLayer()
-        app.activeLayer.name = "{layer_name}"
+        app.activeLayer.name = "{safe_layer_name}"
     end)
     
     spr:saveAs(spr.filename)
@@ -174,6 +177,7 @@ async def set_layer(filename: str, layer_name: str, create_if_missing: bool = Fa
         return f"File {filename} not found"
 
     create_flag = "true" if create_if_missing else "false"
+    safe_layer_name = lua_escape(layer_name)
 
     script = f"""
     local spr = app.activeSprite
@@ -181,7 +185,7 @@ async def set_layer(filename: str, layer_name: str, create_if_missing: bool = Fa
 
     local target = nil
     for i, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target = layer
             break
         end
@@ -191,7 +195,7 @@ async def set_layer(filename: str, layer_name: str, create_if_missing: bool = Fa
         if not target then
             if {create_flag} then
                 target = spr:newLayer()
-                target.name = "{layer_name}"
+                target.name = "{safe_layer_name}"
             else
                 return
             end
