@@ -1,6 +1,6 @@
 import os
 import json
-from ..core.commands import AsepriteCommand
+from ..core.commands import AsepriteCommand, lua_escape
 from .. import mcp
 
 @mcp.tool()
@@ -86,6 +86,7 @@ async def set_layer_visibility(filename: str, layer_name: str, visible: bool = T
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_layer_name = lua_escape(layer_name)
     visible_flag = "true" if visible else "false"
     script = f"""
     local spr = app.activeSprite
@@ -93,7 +94,7 @@ async def set_layer_visibility(filename: str, layer_name: str, visible: bool = T
 
     local target = nil
     for i, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target = layer
             break
         end
@@ -127,13 +128,14 @@ async def set_layer_opacity(filename: str, layer_name: str, opacity: int) -> str
     if opacity < 0 or opacity > 255:
         return "Opacity must be between 0 and 255"
 
+    safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
     if not spr then return "No active sprite" end
 
     local target = nil
     for i, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target = layer
             break
         end
@@ -267,6 +269,7 @@ async def set_cel_position(
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_layer_name = lua_escape(layer_name)
     source_idx = "nil" if source_frame_index is None else str(source_frame_index)
     create_flag = "true" if create_if_missing else "false"
 
@@ -276,7 +279,7 @@ async def set_cel_position(
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target_layer = layer
             break
         end
@@ -351,6 +354,7 @@ async def tween_cel_positions(
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_missing_cels else "false"
     source_idx = "nil" if source_frame_index is None else str(source_frame_index)
 
@@ -360,7 +364,7 @@ async def tween_cel_positions(
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target_layer = layer
             break
         end
@@ -435,13 +439,14 @@ async def offset_cel_positions(
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
     if not spr then return "No active sprite" end
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target_layer = layer
             break
         end
@@ -494,6 +499,7 @@ async def create_cel(
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
     if not spr then return "No active sprite" end
@@ -503,7 +509,7 @@ async def create_cel(
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then target = layer break end
+        if layer.name == "{safe_layer_name}" then target = layer break end
     end
     if not target then return "Layer not found" end
 
@@ -530,6 +536,7 @@ async def clear_cel(filename: str, layer_name: str, frame_index: int) -> str:
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
     if not spr then return "No active sprite" end
@@ -539,7 +546,7 @@ async def clear_cel(filename: str, layer_name: str, frame_index: int) -> str:
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then target = layer break end
+        if layer.name == "{safe_layer_name}" then target = layer break end
     end
     if not target then return "Layer not found" end
 
@@ -572,6 +579,7 @@ async def copy_cel(
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_layer_name = lua_escape(layer_name)
     replace_flag = "true" if replace else "false"
     script = f"""
     local spr = app.activeSprite
@@ -584,7 +592,7 @@ async def copy_cel(
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then target = layer break end
+        if layer.name == "{safe_layer_name}" then target = layer break end
     end
     if not target then return "Layer not found" end
 
@@ -754,6 +762,7 @@ async def set_tag(
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_name = lua_escape(name)
     script = f"""
     local spr = app.activeSprite
     if not spr then return "No active sprite" end
@@ -766,7 +775,7 @@ async def set_tag(
 
     local tag = nil
     for _, t in ipairs(spr.tags) do
-        if t.name == "{name}" then tag = t break end
+        if t.name == "{safe_name}" then tag = t break end
     end
     if not tag then
         tag = spr:newTag(start_idx, end_idx)
@@ -774,7 +783,7 @@ async def set_tag(
         tag.fromFrame = spr.frames[start_idx]
         tag.toFrame = spr.frames[end_idx]
     end
-    tag.name = "{name}"
+    tag.name = "{safe_name}"
 
     spr:saveAs(spr.filename)
     return "Tag set"
@@ -833,7 +842,7 @@ async def propagate_cels(
         return "Layer names list cannot be empty"
 
     replace_flag = "true" if replace else "false"
-    layers_lua = "{" + ",".join([f"\"{name}\"" for name in layer_names]) + "}"
+    layers_lua = "{" + ",".join([f"\"{lua_escape(name)}\"" for name in layer_names]) + "}"
 
     script = f"""
     local spr = app.activeSprite
@@ -915,6 +924,7 @@ async def tween_cel_positions_eased(
     if easing not in {"linear", "ease_in", "ease_out", "ease_in_out", "smoothstep"}:
         return "Unsupported easing (linear, ease_in, ease_out, ease_in_out, smoothstep)"
 
+    safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_missing_cels else "false"
     source_idx = "nil" if source_frame_index is None else str(source_frame_index)
 
@@ -924,7 +934,7 @@ async def tween_cel_positions_eased(
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target_layer = layer
             break
         end
@@ -1011,6 +1021,7 @@ async def oscillate_cel_positions(
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_missing_cels else "false"
     source_idx = "nil" if source_frame_index is None else str(source_frame_index)
 
@@ -1020,7 +1031,7 @@ async def oscillate_cel_positions(
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target_layer = layer
             break
         end
@@ -1106,6 +1117,7 @@ async def tween_cel_opacity_eased(
     if easing not in {"linear", "ease_in", "ease_out", "ease_in_out", "smoothstep"}:
         return "Unsupported easing (linear, ease_in, ease_out, ease_in_out, smoothstep)"
 
+    safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_missing_cels else "false"
     source_idx = "nil" if source_frame_index is None else str(source_frame_index)
 
@@ -1115,7 +1127,7 @@ async def tween_cel_opacity_eased(
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target_layer = layer
             break
         end
@@ -1214,6 +1226,7 @@ async def tween_cel_scale_eased(
     if anchor not in {"center", "topleft"}:
         return "Unsupported anchor (center, topleft)"
 
+    safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_missing_cels else "false"
     replace_flag = "true" if replace else "false"
     source_idx = "nil" if source_frame_index is None else str(source_frame_index)
@@ -1224,7 +1237,7 @@ async def tween_cel_scale_eased(
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
-        if layer.name == "{layer_name}" then
+        if layer.name == "{safe_layer_name}" then
             target_layer = layer
             break
         end
