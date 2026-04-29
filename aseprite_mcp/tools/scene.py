@@ -1,6 +1,6 @@
 import os
 from typing import List
-from ..core.commands import AsepriteCommand, lua_escape
+from ..core.commands import AsepriteCommand, lua_escape, reject_traversal
 from .. import mcp
 
 @mcp.tool()
@@ -26,8 +26,9 @@ async def copy_layers_between_sprites(
         return f"File {target_filename} not found"
     if not layer_names:
         return "Layer names list cannot be empty"
-    if ".." in source_filename or ".." in target_filename:
-        return "Invalid filename: path traversal not allowed"
+    err = reject_traversal(source_filename) or reject_traversal(target_filename)
+    if err:
+        return err
 
     src_path = lua_escape(source_filename.replace("\\", "/"))
     dst_path = lua_escape(target_filename.replace("\\", "/"))

@@ -1,5 +1,5 @@
 import os
-from ..core.commands import AsepriteCommand, lua_escape
+from ..core.commands import AsepriteCommand, lua_escape, reject_traversal
 from .. import mcp
 
 @mcp.tool()
@@ -13,8 +13,9 @@ async def create_canvas(width: int, height: int, filename: str = "canvas.aseprit
     """
     if width <= 0 or height <= 0:
         return "Width and height must be > 0"
-    if ".." in filename:
-        return "Invalid filename: path traversal not allowed"
+    err = reject_traversal(filename)
+    if err:
+        return err
 
     safe_path = lua_escape(filename.replace("\\", "/"))
     script = f"""

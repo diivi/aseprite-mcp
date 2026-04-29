@@ -18,6 +18,24 @@ def lua_escape(s: str) -> str:
     )
 
 
+def reject_traversal(path: str) -> str | None:
+    """Reject parent-directory traversal in a user-supplied path.
+
+    Returns an error message string when the path contains a `..`
+    component, or None when the path looks safe.
+
+    The check works on normalized path components, so it does not
+    false-positive on filenames like `foo..bar.aseprite` (the previous
+    `'..' in path` substring check did). Absolute paths and tilde
+    expansion are not rejected here: this function targets traversal
+    only, not access scoping.
+    """
+    parts = os.path.normpath(path).replace("\\", "/").split("/")
+    if ".." in parts:
+        return "Invalid filename: parent directory traversal not allowed"
+    return None
+
+
 class AsepriteCommand:
     """Helper class for running Aseprite commands."""
     
