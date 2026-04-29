@@ -49,9 +49,13 @@ async def draw_pixels(filename: str, pixels: List[Dict[str, Any]]) -> str:
         end
 
         local img = cel.image
+        local cox = cel.position.x
+        local coy = cel.position.y
     """
 
-    # Add pixel drawing commands
+    # Add pixel drawing commands. Coordinates are sprite-global; we
+    # offset into cel-local space because cel.image:putPixel uses
+    # cel-local coordinates.
     for pixel in pixels:
         x = pixel.get("x", 0)
         y = pixel.get("y", 0)
@@ -61,7 +65,7 @@ async def draw_pixels(filename: str, pixels: List[Dict[str, Any]]) -> str:
         r, g, b = rgb
 
         script += f"""
-        img:putPixel({x}, {y}, Color({r}, {g}, {b}, 255))
+        img:putPixel({x} - cox, {y} - coy, Color({r}, {g}, {b}, 255))
         """
 
     script += """
@@ -142,8 +146,13 @@ async def draw_line(filename: str, x1: int, y1: int, x2: int, y2: int, color: st
             end
         end
         local img = cel.image
+        local cox = cel.position.x
+        local coy = cel.position.y
         local color = Color({r}, {g}, {b}, 255)
-        draw_line(img, {x1}, {y1}, {x2}, {y2}, color, {thickness})
+        -- Translate sprite-global args into cel-local space so the
+        -- inner Bresenham/putPixel helpers do not need to know about
+        -- cel.position.
+        draw_line(img, {x1} - cox, {y1} - coy, {x2} - cox, {y2} - coy, color, {thickness})
     end)
 
     spr:saveAs(spr.filename)
@@ -368,6 +377,8 @@ async def draw_pixels_at(
         end
         if not cel then return end
         local img = cel.image
+        local cox = cel.position.x
+        local coy = cel.position.y
     """
     for pixel in pixels:
         x = pixel.get("x", 0)
@@ -377,7 +388,7 @@ async def draw_pixels_at(
             return f"Invalid color value: {pixel.get('color')}"
         r, g, b = rgb
         script += f"""
-        img:putPixel({x}, {y}, Color({r}, {g}, {b}, 255))
+        img:putPixel({x} - cox, {y} - coy, Color({r}, {g}, {b}, 255))
         """
 
     script += """
@@ -467,8 +478,10 @@ async def draw_line_at(
         end
         if not cel then return end
         local img = cel.image
+        local cox = cel.position.x
+        local coy = cel.position.y
         local color = Color({r}, {g}, {b}, 255)
-        draw_line(img, {x1}, {y1}, {x2}, {y2}, color, {thickness})
+        draw_line(img, {x1} - cox, {y1} - coy, {x2} - cox, {y2} - coy, color, {thickness})
     end)
 
     spr:saveAs(spr.filename)
@@ -774,8 +787,16 @@ async def draw_polygon(
         end
         if not cel then return end
         local img = cel.image
+        local cox = cel.position.x
+        local coy = cel.position.y
         local color = Color({r}, {g}, {b}, 255)
         local pts = {{ {points_lua} }}
+        -- Pre-translate points into cel-local space so the helpers
+        -- can stay generic.
+        for i = 1, #pts do
+            pts[i].x = pts[i].x - cox
+            pts[i].y = pts[i].y - coy
+        end
         if {fill_flag} then
             fill_polygon(img, pts, color)
         end
@@ -870,8 +891,14 @@ async def draw_path(
         end
         if not cel then return end
         local img = cel.image
+        local cox = cel.position.x
+        local coy = cel.position.y
         local color = Color({r}, {g}, {b}, 255)
         local pts = {{ {points_lua} }}
+        for i = 1, #pts do
+            pts[i].x = pts[i].x - cox
+            pts[i].y = pts[i].y - coy
+        end
         for i = 1, #pts - 1 do
             draw_line(img, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, color, {thickness})
         end
@@ -942,6 +969,8 @@ async def apply_gradient_rect(
         end
         if not cel then return end
         local img = cel.image
+        local cox = cel.position.x
+        local coy = cel.position.y
         local w = {width}
         local h = {height}
         for iy = 0, h - 1 do
@@ -955,7 +984,7 @@ async def apply_gradient_rect(
                 local r = math.floor({sr} + ({er} - {sr}) * t + 0.5)
                 local g = math.floor({sg} + ({eg} - {sg}) * t + 0.5)
                 local b = math.floor({sb} + ({eb} - {sb}) * t + 0.5)
-                img:putPixel({x} + ix, {y} + iy, Color(r, g, b, 255))
+                img:putPixel({x} + ix - cox, {y} + iy - coy, Color(r, g, b, 255))
             end
         end
     end)
