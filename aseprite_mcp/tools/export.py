@@ -1,5 +1,5 @@
 import os
-from ..core.commands import AsepriteCommand
+from ..core.commands import AsepriteCommand, lua_escape, reject_traversal
 from .. import mcp
 
 @mcp.tool()
@@ -50,10 +50,14 @@ async def copy_sprite(filename: str, output_filename: str, overwrite: bool = Fal
     if not output_filename.lower().endswith(".aseprite"):
         output_filename = f"{output_filename}.aseprite"
 
+    err = reject_traversal(output_filename)
+    if err:
+        return err
+
     if os.path.exists(output_filename) and not overwrite:
         return f"Output file {output_filename} already exists"
 
-    safe_path = output_filename.replace("\\", "/")
+    safe_path = lua_escape(output_filename.replace("\\", "/"))
     script = f"""
     local spr = app.activeSprite
     if not spr then return "No active sprite" end
