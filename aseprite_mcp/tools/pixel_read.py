@@ -32,28 +32,33 @@ async def get_pixel_color(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local img = nil
+    local cel = nil
     if "{safe_layer}" ~= "" then
         local target = nil
         for _, layer in ipairs(spr.layers) do
             if layer.name == "{safe_layer}" then target = layer break end
         end
         if not target then print("ERROR:Layer not found") return end
-        local cel = target:cel(spr.frames[idx])
+        cel = target:cel(spr.frames[idx])
         if not cel then print("ERROR:No cel at that layer/frame") return end
-        img = cel.image
     else
         app.activeFrame = spr.frames[idx]
-        local cel = app.activeCel
+        cel = app.activeCel
         if not cel then print("ERROR:No active cel") return end
-        img = cel.image
     end
 
-    local px_val = img:getPixel({x}, {y})
-    local r = app.pixelColor.rgbaR(px_val)
-    local g = app.pixelColor.rgbaG(px_val)
-    local b = app.pixelColor.rgbaB(px_val)
-    local a = app.pixelColor.rgbaA(px_val)
+    local img = cel.image
+    -- Coordinates are sprite-global; offset into cel-local space.
+    local cx = {x} - cel.position.x
+    local cy = {y} - cel.position.y
+    local r, g, b, a = 0, 0, 0, 0
+    if cx >= 0 and cy >= 0 and cx < img.width and cy < img.height then
+        local px_val = img:getPixel(cx, cy)
+        r = app.pixelColor.rgbaR(px_val)
+        g = app.pixelColor.rgbaG(px_val)
+        b = app.pixelColor.rgbaB(px_val)
+        a = app.pixelColor.rgbaA(px_val)
+    end
     print(string.format("PIXEL:%d,%d,%d,%d", r, g, b, a))
     """
 
@@ -112,30 +117,39 @@ async def get_pixels_rect(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local img = nil
+    local cel = nil
     if "{safe_layer}" ~= "" then
         local target = nil
         for _, layer in ipairs(spr.layers) do
             if layer.name == "{safe_layer}" then target = layer break end
         end
         if not target then print("ERROR:Layer not found") return end
-        local cel = target:cel(spr.frames[idx])
+        cel = target:cel(spr.frames[idx])
         if not cel then print("ERROR:No cel at that layer/frame") return end
-        img = cel.image
     else
         app.activeFrame = spr.frames[idx]
-        local cel = app.activeCel
+        cel = app.activeCel
         if not cel then print("ERROR:No active cel") return end
-        img = cel.image
     end
+
+    local img = cel.image
+    local ox = cel.position.x
+    local oy = cel.position.y
+    local iw = img.width
+    local ih = img.height
 
     for py = {y}, {y_end} do
         for px = {x}, {x_end} do
-            local px_val = img:getPixel(px, py)
-            local r = app.pixelColor.rgbaR(px_val)
-            local g = app.pixelColor.rgbaG(px_val)
-            local b = app.pixelColor.rgbaB(px_val)
-            local a = app.pixelColor.rgbaA(px_val)
+            local cx = px - ox
+            local cy = py - oy
+            local r, g, b, a = 0, 0, 0, 0
+            if cx >= 0 and cy >= 0 and cx < iw and cy < ih then
+                local px_val = img:getPixel(cx, cy)
+                r = app.pixelColor.rgbaR(px_val)
+                g = app.pixelColor.rgbaG(px_val)
+                b = app.pixelColor.rgbaB(px_val)
+                a = app.pixelColor.rgbaA(px_val)
+            end
             print(string.format("PIXEL:%d,%d,%d,%d,%d,%d", px, py, r, g, b, a))
         end
     end
