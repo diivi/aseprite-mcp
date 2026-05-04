@@ -165,18 +165,25 @@ async def draw_rectangle(filename: str, x: int, y: int, width: int, height: int,
         filename: Name of the Aseprite file to modify
         x: Top-left x coordinate
         y: Top-left y coordinate
-        width: Width of the rectangle
-        height: Height of the rectangle
+        width: Width of the rectangle in pixels (must be > 0)
+        height: Height of the rectangle in pixels (must be > 0)
         color: Hex color code (default: "#000000")
         fill: Whether to fill the rectangle (default: False)
     """
     if not os.path.exists(filename):
         return f"File {filename} not found"
+    if width <= 0 or height <= 0:
+        return "Width and height must be > 0"
 
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
     r, g, b = rgb
+
+    # app.useTool treats both points as inclusive corners, so the second
+    # point sits at (x+width-1, y+height-1) for a width x height rect.
+    x2 = x + width - 1
+    y2 = y + height - 1
 
     script = f"""
     local spr = app.activeSprite
@@ -198,7 +205,7 @@ async def draw_rectangle(filename: str, x: int, y: int, width: int, height: int,
         app.useTool({{
             tool=tool,
             color=color,
-            points={{Point({x}, {y}), Point({x + width}, {y + height})}}
+            points={{Point({x}, {y}), Point({x2}, {y2})}}
         }})
     end)
 
@@ -496,6 +503,8 @@ async def draw_rectangle_at(
     """Draw a rectangle on a specific layer/frame."""
     if not os.path.exists(filename):
         return f"File {filename} not found"
+    if width <= 0 or height <= 0:
+        return "Width and height must be > 0"
 
     rgb = _parse_hex_color(color)
     if rgb is None:
@@ -503,6 +512,8 @@ async def draw_rectangle_at(
     r, g, b = rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
+    x2 = x + width - 1
+    y2 = y + height - 1
 
     script = f"""
     local spr = app.activeSprite
@@ -531,7 +542,7 @@ async def draw_rectangle_at(
         app.useTool({{
             tool=tool,
             color=color,
-            points={{Point({x}, {y}), Point({x + width}, {y + height})}}
+            points={{Point({x}, {y}), Point({x2}, {y2})}}
         }})
     end)
 
