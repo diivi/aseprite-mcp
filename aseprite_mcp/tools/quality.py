@@ -437,7 +437,8 @@ async def audit_animation(
     end
 
     table.insert(parts, "}}")
-    return table.concat(parts)
+    -- batch mode discards Lua `return` values; output must be printed
+    print(table.concat(parts))
     """
 
     success, output = AsepriteCommand.execute_lua_script(script, filename)
