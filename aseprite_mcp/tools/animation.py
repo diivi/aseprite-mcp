@@ -623,6 +623,7 @@ async def copy_cel(
         local dst = target:cel(spr.frames[dst_idx])
         if dst and {replace_flag} then
             spr:deleteCel(dst)
+            dst = nil
         end
         if not dst then
             local img = src.image:clone()
