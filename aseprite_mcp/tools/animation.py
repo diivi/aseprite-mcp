@@ -157,7 +157,7 @@ async def set_layer_opacity(filename: str, layer_name: str, opacity: int) -> str
 
 @mcp.tool()
 async def get_sprite_info(filename: str) -> str:
-    """Return sprite info as JSON string (size, frame count, layers).
+    """Return sprite info as JSON string (size, color mode, frame durations, layers, tags).
 
     Args:
         filename: Name of the Aseprite file to inspect
@@ -165,25 +165,46 @@ async def get_sprite_info(filename: str) -> str:
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    # NOTE: batch mode discards Lua `return` values — output MUST go through print().
     script = """
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("No active sprite") return end
+
+    local cm = "unknown"
+    if spr.colorMode == ColorMode.RGB then cm = "rgb"
+    elseif spr.colorMode == ColorMode.INDEXED then cm = "indexed"
+    elseif spr.colorMode == ColorMode.GRAY then cm = "gray" end
 
     local parts = {}
     table.insert(parts, "{")
     table.insert(parts, "\\"width\\":" .. spr.width .. ",")
     table.insert(parts, "\\"height\\":" .. spr.height .. ",")
+    table.insert(parts, "\\"color_mode\\":\\"" .. cm .. "\\",")
     table.insert(parts, "\\"frames\\":" .. #spr.frames .. ",")
+    table.insert(parts, "\\"durations_ms\\":[")
+    for i, frame in ipairs(spr.frames) do
+        table.insert(parts, tostring(math.floor(frame.duration * 1000 + 0.5)))
+        if i < #spr.frames then table.insert(parts, ",") end
+    end
+    table.insert(parts, "],")
     table.insert(parts, "\\"layers\\":[")
     for i, layer in ipairs(spr.layers) do
-        local entry = "{\\"name\\":\\"" .. layer.name .. "\\",\\"visible\\":" .. tostring(layer.isVisible) .. ",\\"opacity\\":" .. layer.opacity .. "}"
+        local entry = "{\\"name\\":" .. string.format("%q", layer.name) .. ",\\"visible\\":" .. tostring(layer.isVisible) .. ",\\"opacity\\":" .. (layer.opacity or 255) .. ",\\"is_group\\":" .. tostring(layer.isGroup) .. "}"
         table.insert(parts, entry)
         if i < #spr.layers then
             table.insert(parts, ",")
         end
     end
+    table.insert(parts, "],")
+    local dirs = {[0]="forward", "reverse", "pingpong", "pingpong_reverse"}
+    table.insert(parts, "\\"tags\\":[")
+    for i, t in ipairs(spr.tags) do
+        local entry = "{\\"name\\":" .. string.format("%q", t.name) .. ",\\"from\\":" .. t.fromFrame.frameNumber .. ",\\"to\\":" .. t.toFrame.frameNumber .. ",\\"direction\\":\\"" .. (dirs[tonumber(t.aniDir)] or tostring(t.aniDir)) .. "\\"}"
+        table.insert(parts, entry)
+        if i < #spr.tags then table.insert(parts, ",") end
+    end
     table.insert(parts, "]}")
-    return table.concat(parts)
+    print(table.concat(parts))
     """
 
     success, output = AsepriteCommand.execute_lua_script(script, filename)
