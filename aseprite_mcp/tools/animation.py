@@ -758,9 +758,21 @@ async def set_tag(
     to_frame: int,
     direction: str = "forward"
 ) -> str:
-    """Create or update an animation tag on the sprite."""
+    """Create or update an animation tag on the sprite.
+
+    direction: forward | reverse | pingpong | pingpong_reverse
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
+
+    ani_dirs = {
+        "forward": "AniDir.FORWARD",
+        "reverse": "AniDir.REVERSE",
+        "pingpong": "AniDir.PING_PONG",
+        "pingpong_reverse": "AniDir.PING_PONG_REVERSE",
+    }
+    if direction not in ani_dirs:
+        return f"Unsupported direction '{direction}' (forward, reverse, pingpong, pingpong_reverse)"
 
     safe_name = lua_escape(name)
     script = f"""
@@ -784,6 +796,7 @@ async def set_tag(
         tag.toFrame = spr.frames[end_idx]
     end
     tag.name = "{safe_name}"
+    tag.aniDir = {ani_dirs[direction]}
 
     spr:saveAs(spr.filename)
     return "Tag set"
@@ -791,9 +804,7 @@ async def set_tag(
 
     success, output = AsepriteCommand.execute_lua_script(script, filename)
     if success:
-        if direction != "forward":
-            return f"Tag '{name}' set to frames {from_frame}-{to_frame} in {filename} (direction ignored)"
-        return f"Tag '{name}' set to frames {from_frame}-{to_frame} in {filename}"
+        return f"Tag '{name}' set to frames {from_frame}-{to_frame} (direction={direction}) in {filename}"
     return f"Failed to set tag: {output}"
 
 @mcp.tool()
