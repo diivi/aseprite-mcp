@@ -39,3 +39,8 @@ ENV/
 *.png
 *.gif
 *.jpg
+
+# README showcase images (everything else in examples/ stays untracked)
+!examples/swordsman/swordsman.png
+!examples/swordsman/swordsman_slash.gif
+!examples/swordsman/swordsman_slash_sheet.png
