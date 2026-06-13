@@ -28,19 +28,19 @@ async def flip_layer(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     local cel = target:cel(spr.frames[idx])
-    if not cel then return "No cel at that layer/frame" end
+    if not cel then print("ERROR:No cel at that layer/frame") return end
 
     app.transaction(function()
         local img = cel.image
@@ -68,10 +68,10 @@ async def flip_layer(
     end)
 
     spr:saveAs(spr.filename)
-    return "Layer flipped"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Layer '{layer_name}' flipped {direction}ly in {filename}"
     return f"Failed to flip layer: {output}"
@@ -145,19 +145,19 @@ async def rotate_layer(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     local cel = target:cel(spr.frames[idx])
-    if not cel then return "No cel at that layer/frame" end
+    if not cel then print("ERROR:No cel at that layer/frame") return end
 
     app.transaction(function()
         local img = cel.image
@@ -165,10 +165,10 @@ async def rotate_layer(
     end)
 
     spr:saveAs(spr.filename)
-    return "Layer rotated"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Layer '{layer_name}' rotated {angle}° clockwise in {filename}"
     return f"Failed to rotate layer: {output}"
@@ -190,17 +190,17 @@ async def resize_canvas(filename: str, width: int, height: int) -> str:
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     app.transaction(function()
         spr:resize({width}, {height})
     end)
 
     spr:saveAs(spr.filename)
-    return "Canvas resized"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Canvas resized to {width}x{height} in {filename}"
     return f"Failed to resize canvas: {output}"
@@ -224,17 +224,21 @@ async def crop_canvas(filename: str, x: int, y: int, width: int, height: int) ->
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
+
+    if {x} >= spr.width or {y} >= spr.height or {x} + {width} <= 0 or {y} + {height} <= 0 then
+        print("ERROR:Crop rect is fully outside the canvas") return
+    end
 
     app.transaction(function()
         spr:crop({x}, {y}, {width}, {height})
     end)
 
     spr:saveAs(spr.filename)
-    return "Canvas cropped"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Canvas cropped to ({x},{y}) {width}x{height} in {filename}"
     return f"Failed to crop canvas: {output}"

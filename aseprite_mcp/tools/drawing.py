@@ -34,7 +34,7 @@ async def draw_pixels(filename: str, pixels: List[Dict[str, Any]]) -> str:
 
     script = """
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     app.transaction(function()
         local cel = app.activeCel
@@ -44,7 +44,7 @@ async def draw_pixels(filename: str, pixels: List[Dict[str, Any]]) -> str:
             app.activeFrame = spr.frames[1]
             cel = app.activeCel
             if not cel then
-                return "No active cel and couldn't create one"
+                print("ERROR:No active cel and couldn't create one") return
             end
         end
 
@@ -72,10 +72,10 @@ async def draw_pixels(filename: str, pixels: List[Dict[str, Any]]) -> str:
     end)
 
     spr:saveAs(spr.filename)
-    return "Pixels drawn successfully"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
         return f"Pixels drawn successfully in {filename}"
@@ -105,7 +105,7 @@ async def draw_line(filename: str, x1: int, y1: int, x2: int, y2: int, color: st
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local function put_thick(img, x, y, color, size)
         local r = math.max(0, math.floor(size / 2))
@@ -142,7 +142,7 @@ async def draw_line(filename: str, x1: int, y1: int, x2: int, y2: int, color: st
             app.activeFrame = spr.frames[1]
             cel = app.activeCel
             if not cel then
-                return "No active cel and couldn't create one"
+                print("ERROR:No active cel and couldn't create one") return
             end
         end
         local img = cel.image
@@ -156,10 +156,10 @@ async def draw_line(filename: str, x1: int, y1: int, x2: int, y2: int, color: st
     end)
 
     spr:saveAs(spr.filename)
-    return "Line drawn successfully"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
         return f"Line drawn successfully in {filename}"
@@ -196,7 +196,7 @@ async def draw_rectangle(filename: str, x: int, y: int, width: int, height: int,
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     app.transaction(function()
         local cel = app.activeCel
@@ -205,7 +205,7 @@ async def draw_rectangle(filename: str, x: int, y: int, width: int, height: int,
             app.activeFrame = spr.frames[1]
             cel = app.activeCel
             if not cel then
-                return "No active cel and couldn't create one"
+                print("ERROR:No active cel and couldn't create one") return
             end
         end
 
@@ -219,10 +219,10 @@ async def draw_rectangle(filename: str, x: int, y: int, width: int, height: int,
     end)
 
     spr:saveAs(spr.filename)
-    return "Rectangle drawn successfully"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
         return f"Rectangle drawn successfully in {filename}"
@@ -249,7 +249,7 @@ async def fill_area(filename: str, x: int, y: int, color: str = "#000000") -> st
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     app.transaction(function()
         local cel = app.activeCel
@@ -258,7 +258,7 @@ async def fill_area(filename: str, x: int, y: int, color: str = "#000000") -> st
             app.activeFrame = spr.frames[1]
             cel = app.activeCel
             if not cel then
-                return "No active cel and couldn't create one"
+                print("ERROR:No active cel and couldn't create one") return
             end
         end
 
@@ -271,10 +271,10 @@ async def fill_area(filename: str, x: int, y: int, color: str = "#000000") -> st
     end)
 
     spr:saveAs(spr.filename)
-    return "Area filled successfully"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
         return f"Area filled successfully in {filename}"
@@ -303,7 +303,7 @@ async def draw_circle(filename: str, center_x: int, center_y: int, radius: int, 
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     app.transaction(function()
         local cel = app.activeCel
@@ -312,7 +312,7 @@ async def draw_circle(filename: str, center_x: int, center_y: int, radius: int, 
             app.activeFrame = spr.frames[1]
             cel = app.activeCel
             if not cel then
-                return "No active cel and couldn't create one"
+                print("ERROR:No active cel and couldn't create one") return
             end
         end
 
@@ -329,10 +329,10 @@ async def draw_circle(filename: str, center_x: int, center_y: int, radius: int, 
     end)
 
     spr:saveAs(spr.filename)
-    return "Circle drawn successfully"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
         return f"Circle drawn successfully in {filename}"
@@ -363,16 +363,16 @@ async def draw_pixels_at(
     create_flag = "true" if create_if_missing else "false"
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -402,10 +402,10 @@ async def draw_pixels_at(
     end)
 
     spr:saveAs(spr.filename)
-    return "Pixels drawn"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Pixels drawn on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to draw pixels: {output}"
@@ -436,7 +436,7 @@ async def draw_line_at(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local function put_thick(img, x, y, color, size)
         local r = math.max(0, math.floor(size / 2))
@@ -467,13 +467,13 @@ async def draw_line_at(
     end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -492,10 +492,10 @@ async def draw_line_at(
     end)
 
     spr:saveAs(spr.filename)
-    return "Line drawn"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Line drawn on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to draw line: {output}"
@@ -530,16 +530,16 @@ async def draw_rectangle_at(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -560,10 +560,10 @@ async def draw_rectangle_at(
     end)
 
     spr:saveAs(spr.filename)
-    return "Rectangle drawn"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Rectangle drawn on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to draw rectangle: {output}"
@@ -593,16 +593,16 @@ async def draw_circle_at(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -626,10 +626,10 @@ async def draw_circle_at(
     end)
 
     spr:saveAs(spr.filename)
-    return "Circle drawn"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Circle drawn on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to draw circle: {output}"
@@ -657,16 +657,16 @@ async def fill_area_at(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -686,10 +686,10 @@ async def fill_area_at(
     end)
 
     spr:saveAs(spr.filename)
-    return "Area filled"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Area filled on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to fill area: {output}"
@@ -721,7 +721,7 @@ async def draw_polygon(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local function put_thick(img, x, y, color, size)
         local r = math.max(0, math.floor(size / 2))
@@ -780,13 +780,13 @@ async def draw_polygon(
     end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -819,10 +819,10 @@ async def draw_polygon(
     end)
 
     spr:saveAs(spr.filename)
-    return "Polygon drawn"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Polygon drawn on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to draw polygon: {output}"
@@ -853,7 +853,7 @@ async def draw_path(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local function put_thick(img, x, y, color, size)
         local r = math.max(0, math.floor(size / 2))
@@ -884,13 +884,13 @@ async def draw_path(
     end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -916,10 +916,10 @@ async def draw_path(
     end)
 
     spr:saveAs(spr.filename)
-    return "Path drawn"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Path drawn on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to draw path: {output}"
@@ -959,16 +959,16 @@ async def apply_gradient_rect(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -1001,10 +1001,10 @@ async def apply_gradient_rect(
     end)
 
     spr:saveAs(spr.filename)
-    return "Gradient applied"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Gradient applied on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to apply gradient: {output}"
@@ -1051,16 +1051,16 @@ async def draw_ellipse_at(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
@@ -1084,10 +1084,10 @@ async def draw_ellipse_at(
     end)
 
     spr:saveAs(spr.filename)
-    return "Ellipse drawn"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Ellipse drawn on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to draw ellipse: {output}"

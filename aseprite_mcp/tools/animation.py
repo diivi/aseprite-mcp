@@ -24,7 +24,7 @@ async def add_frames(filename: str, count: int, duration_ms: int | None = None) 
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     app.transaction(function()
         for i = 1, {count} do
@@ -34,10 +34,10 @@ async def add_frames(filename: str, count: int, duration_ms: int | None = None) 
     end)
 
     spr:saveAs(spr.filename)
-    return "Frames added"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Added {count} frames to {filename}"
     return f"Failed to add frames: {output}"
@@ -57,7 +57,7 @@ async def set_frame_duration_all(filename: str, duration_ms: int) -> str:
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     app.transaction(function()
         for i = 1, #spr.frames do
@@ -66,10 +66,10 @@ async def set_frame_duration_all(filename: str, duration_ms: int) -> str:
     end)
 
     spr:saveAs(spr.filename)
-    return "Frame durations set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Set duration of all frames to {duration_ms}ms in {filename}"
     return f"Failed to set frame durations: {output}"
@@ -90,7 +90,7 @@ async def set_layer_visibility(filename: str, layer_name: str, visible: bool = T
     visible_flag = "true" if visible else "false"
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target = nil
     for i, layer in ipairs(spr.layers) do
@@ -99,17 +99,17 @@ async def set_layer_visibility(filename: str, layer_name: str, visible: bool = T
             break
         end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         target.isVisible = {visible_flag}
     end)
 
     spr:saveAs(spr.filename)
-    return "Layer visibility set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Layer '{layer_name}' visibility set to {visible} in {filename}"
     return f"Failed to set layer visibility: {output}"
@@ -131,7 +131,7 @@ async def set_layer_opacity(filename: str, layer_name: str, opacity: int) -> str
     safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target = nil
     for i, layer in ipairs(spr.layers) do
@@ -140,17 +140,17 @@ async def set_layer_opacity(filename: str, layer_name: str, opacity: int) -> str
             break
         end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         target.opacity = {opacity}
     end)
 
     spr:saveAs(spr.filename)
-    return "Layer opacity set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Layer '{layer_name}' opacity set to {opacity} in {filename}"
     return f"Failed to set layer opacity: {output}"
@@ -229,15 +229,15 @@ async def duplicate_frame_range(filename: str, start_frame: int, end_frame: int,
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local start_idx = {start_frame}
     local end_idx = {end_frame}
     local times = {times}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
-    if times < 1 then return "Times must be >= 1" end
+    if times < 1 then print("ERROR:Times must be >= 1") return end
 
     app.transaction(function()
         for t = 1, times do
@@ -258,10 +258,10 @@ async def duplicate_frame_range(filename: str, start_frame: int, end_frame: int,
     end)
 
     spr:saveAs(spr.filename)
-    return "Frame range duplicated"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Duplicated frames {start_frame}-{end_frame} (x{times}) in {filename}"
     return f"Failed to duplicate frame range: {output}"
@@ -296,7 +296,7 @@ async def set_cel_position(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
@@ -305,11 +305,11 @@ async def set_cel_position(
             break
         end
     end
-    if not target_layer then return "Layer not found" end
+    if not target_layer then print("ERROR:Layer not found") return end
 
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then
-        return "Frame index out of range"
+        print("ERROR:Frame index out of range") return
     end
 
     app.transaction(function()
@@ -337,10 +337,10 @@ async def set_cel_position(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel position set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Cel position set to ({x}, {y}) on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to set cel position: {output}"
@@ -381,7 +381,7 @@ async def tween_cel_positions(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
@@ -390,12 +390,12 @@ async def tween_cel_positions(
             break
         end
     end
-    if not target_layer then return "Layer not found" end
+    if not target_layer then print("ERROR:Layer not found") return end
 
     local start_idx = {start_frame}
     local end_idx = {end_frame}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     local span = end_idx - start_idx
@@ -430,10 +430,10 @@ async def tween_cel_positions(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel positions tweened"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Tweened cel positions on '{layer_name}' frames {start_frame}-{end_frame} in {filename}"
     return f"Failed to tween cel positions: {output}"
@@ -463,7 +463,7 @@ async def offset_cel_positions(
     safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
@@ -472,12 +472,12 @@ async def offset_cel_positions(
             break
         end
     end
-    if not target_layer then return "Layer not found" end
+    if not target_layer then print("ERROR:Layer not found") return end
 
     local start_idx = {start_frame}
     local end_idx = {end_frame}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     app.transaction(function()
@@ -492,10 +492,10 @@ async def offset_cel_positions(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel positions offset"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Offset cel positions by ({dx}, {dy}) on '{layer_name}' frames {start_frame}-{end_frame} in {filename}"
     return f"Failed to offset cel positions: {output}"
@@ -523,16 +523,16 @@ async def create_cel(
     safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         local frame = spr.frames[idx]
@@ -543,10 +543,10 @@ async def create_cel(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel created"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Cel created on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to create cel: {output}"
@@ -560,16 +560,16 @@ async def clear_cel(filename: str, layer_name: str, frame_index: int) -> str:
     safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
-    if idx < 1 or idx > #spr.frames then return "Frame index out of range" end
+    if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         local frame = spr.frames[idx]
@@ -580,10 +580,10 @@ async def clear_cel(filename: str, layer_name: str, frame_index: int) -> str:
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel cleared"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Cel cleared on '{layer_name}' frame {frame_index} in {filename}"
     return f"Failed to clear cel: {output}"
@@ -604,18 +604,18 @@ async def copy_cel(
     replace_flag = "true" if replace else "false"
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local src_idx = {source_frame}
     local dst_idx = {target_frame}
-    if src_idx < 1 or src_idx > #spr.frames then return "Source frame out of range" end
-    if dst_idx < 1 or dst_idx > #spr.frames then return "Target frame out of range" end
+    if src_idx < 1 or src_idx > #spr.frames then print("ERROR:Source frame out of range") return end
+    if dst_idx < 1 or dst_idx > #spr.frames then print("ERROR:Target frame out of range") return end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         local src = target:cel(spr.frames[src_idx])
@@ -632,10 +632,10 @@ async def copy_cel(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel copied"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Cel copied on '{layer_name}' from frame {source_frame} to {target_frame} in {filename}"
     return f"Failed to copy cel: {output}"
@@ -656,10 +656,10 @@ async def copy_frame(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local src_idx = {source_frame}
-    if src_idx < 1 or src_idx > #spr.frames then return "Source frame out of range" end
+    if src_idx < 1 or src_idx > #spr.frames then print("ERROR:Source frame out of range") return end
 
     local dst_idx = {target_idx}
     app.transaction(function()
@@ -691,10 +691,10 @@ async def copy_frame(
     end)
 
     spr:saveAs(spr.filename)
-    return "Frame copied"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         if target_frame is None:
             return f"Frame {source_frame} copied to new frame in {filename}"
@@ -725,14 +725,14 @@ async def propagate_frame_to_range(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local src_idx = {source_frame}
     local start_idx = {start_frame}
     local end_idx = {end_frame}
-    if src_idx < 1 or src_idx > #spr.frames then return "Source frame out of range" end
+    if src_idx < 1 or src_idx > #spr.frames then print("ERROR:Source frame out of range") return end
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     app.transaction(function()
@@ -761,10 +761,10 @@ async def propagate_frame_to_range(
     end)
 
     spr:saveAs(spr.filename)
-    return "Frame range propagated"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return (
             f"Propagated frame {source_frame} to frames {start_frame}-{end_frame} "
@@ -799,12 +799,12 @@ async def set_tag(
     safe_name = lua_escape(name)
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local start_idx = {from_frame}
     local end_idx = {to_frame}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     local tag = nil
@@ -821,10 +821,10 @@ async def set_tag(
     tag.aniDir = {ani_dirs[direction]}
 
     spr:saveAs(spr.filename)
-    return "Tag set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Tag '{name}' set to frames {from_frame}-{to_frame} (direction={direction}) in {filename}"
     return f"Failed to set tag: {output}"
@@ -879,14 +879,14 @@ async def propagate_cels(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local src_idx = {source_frame}
     local start_idx = {start_frame}
     local end_idx = {end_frame}
-    if src_idx < 1 or src_idx > #spr.frames then return "Source frame out of range" end
+    if src_idx < 1 or src_idx > #spr.frames then print("ERROR:Source frame out of range") return end
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     local name_list = {layers_lua}
@@ -899,7 +899,7 @@ async def propagate_cels(
             end
         end
     end
-    if #targets == 0 then return "No layers found" end
+    if #targets == 0 then print("ERROR:No layers found") return end
 
     app.transaction(function()
         for fi = start_idx, end_idx do
@@ -924,10 +924,10 @@ async def propagate_cels(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cels propagated"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return (
             f"Propagated cels from frame {source_frame} to frames {start_frame}-{end_frame} "
@@ -963,7 +963,7 @@ async def tween_cel_positions_eased(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
@@ -972,12 +972,12 @@ async def tween_cel_positions_eased(
             break
         end
     end
-    if not target_layer then return "Layer not found" end
+    if not target_layer then print("ERROR:Layer not found") return end
 
     local start_idx = {start_frame}
     local end_idx = {end_frame}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     local function ease(t)
@@ -1026,10 +1026,10 @@ async def tween_cel_positions_eased(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel positions tweened with easing"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return (
             f"Tweened cel positions ({easing}) on '{layer_name}' frames {start_frame}-{end_frame} "
@@ -1060,7 +1060,7 @@ async def oscillate_cel_positions(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
@@ -1069,12 +1069,12 @@ async def oscillate_cel_positions(
             break
         end
     end
-    if not target_layer then return "Layer not found" end
+    if not target_layer then print("ERROR:Layer not found") return end
 
     local start_idx = {start_frame}
     local end_idx = {end_frame}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     local amplitude_x = {amplitude_x}
@@ -1117,10 +1117,10 @@ async def oscillate_cel_positions(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel positions oscillated"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return (
             f"Oscillated cel positions on '{layer_name}' frames {start_frame}-{end_frame} "
@@ -1156,7 +1156,7 @@ async def tween_cel_opacity_eased(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
@@ -1165,12 +1165,12 @@ async def tween_cel_opacity_eased(
             break
         end
     end
-    if not target_layer then return "Layer not found" end
+    if not target_layer then print("ERROR:Layer not found") return end
 
     local start_idx = {start_frame}
     local end_idx = {end_frame}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     local function ease(t)
@@ -1220,10 +1220,10 @@ async def tween_cel_opacity_eased(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel opacity tweened with easing"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return (
             f"Tweened cel opacity ({easing}) on '{layer_name}' frames {start_frame}-{end_frame} "
@@ -1266,7 +1266,7 @@ async def tween_cel_scale_eased(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target_layer = nil
     for _, layer in ipairs(spr.layers) do
@@ -1275,12 +1275,12 @@ async def tween_cel_scale_eased(
             break
         end
     end
-    if not target_layer then return "Layer not found" end
+    if not target_layer then print("ERROR:Layer not found") return end
 
     local start_idx = {start_frame}
     local end_idx = {end_frame}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     local source_frame = {source_idx}
@@ -1288,12 +1288,12 @@ async def tween_cel_scale_eased(
         source_frame = start_idx
     end
     if source_frame < 1 or source_frame > #spr.frames then
-        return "Source frame out of range"
+        print("ERROR:Source frame out of range") return
     end
 
     local source_cel = target_layer:cel(spr.frames[source_frame])
     if not source_cel then
-        return "Source cel not found"
+        print("ERROR:Source cel not found") return
     end
 
     local base_img = source_cel.image:clone()
@@ -1349,10 +1349,10 @@ async def tween_cel_scale_eased(
     end)
 
     spr:saveAs(spr.filename)
-    return "Cel scale tweened with easing"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return (
             f"Tweened cel scale ({easing}) on '{layer_name}' frames {start_frame}-{end_frame} "
