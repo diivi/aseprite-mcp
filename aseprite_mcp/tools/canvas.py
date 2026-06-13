@@ -21,11 +21,11 @@ async def create_canvas(width: int, height: int, filename: str = "canvas.aseprit
     script = f"""
     local spr = Sprite({width}, {height})
     spr:saveAs("{safe_path}")
-    return "Canvas created successfully"
+    print("OK")
     """
-    
-    success, output = AsepriteCommand.execute_lua_script(script)
-    
+
+    success, output = AsepriteCommand.execute_lua_script_checked(script)
+
     if success:
         return f"Canvas created successfully: {filename}"
     else:
@@ -45,19 +45,19 @@ async def add_layer(filename: str, layer_name: str) -> str:
     safe_layer_name = lua_escape(layer_name)
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     app.transaction(function()
         spr:newLayer()
         app.activeLayer.name = "{safe_layer_name}"
     end)
-    
+
     spr:saveAs(spr.filename)
-    return "Layer added successfully"
+    print("OK")
     """
-    
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
-    
+
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
+
     if success:
         return f"Layer '{layer_name}' added successfully to {filename}"
     else:
@@ -75,18 +75,18 @@ async def add_frame(filename: str) -> str:
     
     script = """
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
-    
+    if not spr then print("ERROR:No active sprite") return end
+
     app.transaction(function()
         spr:newFrame()
     end)
-    
+
     spr:saveAs(spr.filename)
-    return "Frame added successfully"
+    print("OK")
     """
-    
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
-    
+
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
+
     if success:
         return f"New frame added successfully to {filename}"
     else:
@@ -105,11 +105,11 @@ async def set_frame(filename: str, frame_index: int) -> str:
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then
-        return "Frame index out of range"
+        print("ERROR:Frame index out of range") return
     end
 
     app.transaction(function()
@@ -117,10 +117,10 @@ async def set_frame(filename: str, frame_index: int) -> str:
     end)
 
     spr:saveAs(spr.filename)
-    return "Active frame set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
         return f"Active frame set to {frame_index} in {filename}"
@@ -143,11 +143,11 @@ async def set_frame_duration(filename: str, frame_index: int, duration_ms: int) 
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then
-        return "Frame index out of range"
+        print("ERROR:Frame index out of range") return
     end
 
     app.transaction(function()
@@ -155,10 +155,10 @@ async def set_frame_duration(filename: str, frame_index: int, duration_ms: int) 
     end)
 
     spr:saveAs(spr.filename)
-    return "Frame duration set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
         return f"Frame {frame_index} duration set to {duration_ms}ms in {filename}"
@@ -182,7 +182,7 @@ async def set_layer(filename: str, layer_name: str, create_if_missing: bool = Fa
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local target = nil
     for i, layer in ipairs(spr.layers) do
@@ -205,10 +205,10 @@ async def set_layer(filename: str, layer_name: str, create_if_missing: bool = Fa
     end)
 
     spr:saveAs(spr.filename)
-    return "Active layer set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
         return f"Active layer set to '{layer_name}' in {filename}"

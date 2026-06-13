@@ -38,9 +38,9 @@ async def copy_layers_between_sprites(
 
     script = f"""
     local src = app.open("{src_path}")
-    if not src then return "Source sprite not opened" end
+    if not src then print("ERROR:Source sprite not opened") return end
     local dst = app.open("{dst_path}")
-    if not dst then return "Target sprite not opened" end
+    if not dst then print("ERROR:Target sprite not opened") return end
 
     local function find_layer(spr, name)
         for _, layer in ipairs(spr.layers) do
@@ -51,6 +51,17 @@ async def copy_layers_between_sprites(
 
     local names = {layers_lua}
     local missing = {{}}
+    local valid = {{}}
+    for _, name in ipairs(names) do
+        if find_layer(src, name) then
+            table.insert(valid, name)
+        else
+            table.insert(missing, name)
+        end
+    end
+    if #valid == 0 then
+        print("ERROR:None of the requested layers exist in the source: " .. table.concat(missing, ", ")) return
+    end
 
     app.transaction(function()
         if {create_frames_flag} then
@@ -59,35 +70,31 @@ async def copy_layers_between_sprites(
             end
         end
 
-        for _, name in ipairs(names) do
+        for _, name in ipairs(valid) do
             local src_layer = find_layer(src, name)
-            if not src_layer then
-                table.insert(missing, name)
-            else
-                local dst_layer = find_layer(dst, name)
-                if not dst_layer then
-                    dst_layer = dst:newLayer()
-                    dst_layer.name = name
+            local dst_layer = find_layer(dst, name)
+            if not dst_layer then
+                dst_layer = dst:newLayer()
+                dst_layer.name = name
+            end
+            if {replace_flag} then
+                for i = 1, #dst.frames do
+                    local cel = dst_layer:cel(dst.frames[i])
+                    if cel then dst:deleteCel(cel) end
                 end
-                if {replace_flag} then
-                    for i = 1, #dst.frames do
-                        local cel = dst_layer:cel(dst.frames[i])
-                        if cel then dst:deleteCel(cel) end
-                    end
-                end
-                for i = 1, #src.frames do
-                    if i <= #dst.frames then
-                        local src_cel = src_layer:cel(src.frames[i])
-                        if src_cel then
-                            local dst_cel = dst_layer:cel(dst.frames[i])
-                            if dst_cel and {replace_flag} then
-                                dst:deleteCel(dst_cel)
-                                dst_cel = nil
-                            end
-                            if not dst_cel then
-                                local img = src_cel.image:clone()
-                                dst:newCel(dst_layer, dst.frames[i], img, src_cel.position)
-                            end
+            end
+            for i = 1, #src.frames do
+                if i <= #dst.frames then
+                    local src_cel = src_layer:cel(src.frames[i])
+                    if src_cel then
+                        local dst_cel = dst_layer:cel(dst.frames[i])
+                        if dst_cel and {replace_flag} then
+                            dst:deleteCel(dst_cel)
+                            dst_cel = nil
+                        end
+                        if not dst_cel then
+                            local img = src_cel.image:clone()
+                            dst:newCel(dst_layer, dst.frames[i], img, src_cel.position)
                         end
                     end
                 end
@@ -97,12 +104,19 @@ async def copy_layers_between_sprites(
 
     dst:saveAs(dst.filename)
     if #missing > 0 then
-        return "Copied layers with missing: " .. table.concat(missing, ", ")
+        print("MISSING:" .. table.concat(missing, ", "))
     end
-    return "Layers copied"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script)
-    if success:
-        return f"Layers copied from {source_filename} to {target_filename}"
-    return f"Failed to copy layers: {output}"
+    success, output = AsepriteCommand.execute_lua_script_checked(script)
+    if not success:
+        return f"Failed to copy layers: {output}"
+    missing = next(
+        (line[len("MISSING:"):] for line in output.splitlines() if line.startswith("MISSING:")),
+        None,
+    )
+    msg = f"Layers copied from {source_filename} to {target_filename}"
+    if missing:
+        msg += f" (skipped missing layers: {missing})"
+    return msg

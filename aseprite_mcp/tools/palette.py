@@ -110,16 +110,16 @@ async def set_palette(filename: str, colors: List[str]) -> str:
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local pal = Palette({len(rgb_list)})
 {palette_entries}
     spr:setPalette(pal)
     spr:saveAs(spr.filename)
-    return "Palette set"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return f"Palette set with {len(colors)} colors in {filename}"
     return f"Failed to set palette: {output}"
@@ -159,26 +159,26 @@ async def remap_colors_in_cel_range(
 
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     local start_idx = {start_frame}
     local end_idx = {end_frame}
     if start_idx < 1 or end_idx > #spr.frames or start_idx > end_idx then
-        return "Frame range out of bounds"
+        print("ERROR:Frame range out of bounds") return
     end
 
     local target = nil
     for _, layer in ipairs(spr.layers) do
         if layer.name == "{safe_layer_name}" then target = layer break end
     end
-    if not target then return "Layer not found" end
+    if not target then print("ERROR:Layer not found") return end
 
     local source_frame = {source_idx}
     if source_frame == nil then
         source_frame = start_idx
     end
     if source_frame < 1 or source_frame > #spr.frames then
-        return "Source frame out of range"
+        print("ERROR:Source frame out of range") return
     end
 
     local map = {{ {mapping_lua} }}
@@ -222,10 +222,10 @@ async def remap_colors_in_cel_range(
     end)
 
     spr:saveAs(spr.filename)
-    return "Colors remapped"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return (
             f"Remapped colors on '{layer_name}' frames {start_frame}-{end_frame} in {filename}"

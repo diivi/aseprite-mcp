@@ -31,7 +31,18 @@ async def export_sprite(filename: str, output_filename: str, format: str = "png"
         # For still image exports
         args = ["--batch", filename, "--save-as", output_filename]
         success, output = AsepriteCommand.run_command(args)
-    
+
+    # Aseprite exits 0 even when it cannot write the requested format
+    # (e.g. format="json"). Confirm a file actually appeared. A multi-frame
+    # sprite saved to a still format produces frame-numbered siblings
+    # (out1.png, out2.png, ...) instead of the exact name, so accept those
+    # too — same convention as export_frame.
+    if success:
+        base, ext = os.path.splitext(output_filename)
+        if not os.path.exists(output_filename) and not glob.glob(f"{base}*{ext}"):
+            success = False
+            output = "Aseprite exited 0 but wrote no file (the format may not be writable via --save-as)"
+
     if success:
         return f"Sprite exported successfully to {output_filename}"
     else:
@@ -62,13 +73,16 @@ async def copy_sprite(filename: str, output_filename: str, overwrite: bool = Fal
     safe_path = lua_escape(output_filename.replace("\\", "/"))
     script = f"""
     local spr = app.activeSprite
-    if not spr then return "No active sprite" end
+    if not spr then print("ERROR:No active sprite") return end
 
     spr:saveAs("{safe_path}")
-    return "Sprite copied"
+    print("OK")
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
+    if success and not os.path.exists(output_filename):
+        success = False
+        output = "Aseprite exited 0 but wrote no file"
     if success:
         return f"Sprite copied to {output_filename}"
     return f"Failed to copy sprite: {output}"
