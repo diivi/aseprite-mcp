@@ -215,6 +215,12 @@ async def export_spritesheet(
     args += ["--sheet", output_filename]
 
     success, output = AsepriteCommand.run_command(args)
+    if success and not os.path.exists(output_filename):
+        success = False
+        output = "Aseprite exited 0 but wrote no sheet file"
+    if success and data_filename and not os.path.exists(data_filename):
+        success = False
+        output = "Aseprite exited 0 but wrote no data file"
     if success:
         msg = f"Sprite sheet exported to {output_filename} ({sheet_type})"
         if data_filename:
@@ -251,12 +257,14 @@ async def export_layers(
         "--save-as", os.path.join(output_directory, "{layer}.png"),
     ]
     success, output = AsepriteCommand.run_command(args)
-    if success:
-        produced = sorted(
-            os.path.basename(p) for p in glob.glob(os.path.join(output_directory, "*.png"))
-        )
-        return f"Layers exported to {output_directory}: {', '.join(produced) or '(none)'}"
-    return f"Failed to export layers: {output}"
+    if not success:
+        return f"Failed to export layers: {output}"
+    produced = sorted(
+        os.path.basename(p) for p in glob.glob(os.path.join(output_directory, "*.png"))
+    )
+    if not produced:
+        return "Failed to export layers: Aseprite exited 0 but wrote no PNG files"
+    return f"Layers exported to {output_directory}: {', '.join(produced)}"
 
 
 @mcp.tool()
@@ -282,11 +290,35 @@ async def export_tag(
     if err:
         return err
 
+    # --tag silently exports *all* frames (exit 0) when the tag does not
+    # exist, so a produced file is not proof the tag was honoured. Validate
+    # the tag up front — same approach as export_spritesheet.
+    safe_tag = lua_escape(tag_name)
+    check = f"""
+    local spr = app.activeSprite
+    if not spr then print("ERROR:No active sprite") return end
+    for _, tag in ipairs(spr.tags) do
+        if tag.name == "{safe_tag}" then print("OK") return end
+    end
+    print("ERROR:Tag not found")
+    """
+    ok, out = AsepriteCommand.execute_lua_script_checked(check, filename)
+    if not ok:
+        return f"Failed to export tag: {out}"
+
     args = ["--batch", filename, "--tag", tag_name]
     if scale > 1:
         args += ["--scale", str(scale)]
     args += ["--save-as", output_filename]
     success, output = AsepriteCommand.run_command(args)
+    if success:
+        # A multi-frame tag saved to a still format produces frame-numbered
+        # siblings instead of the exact name — accept those, same convention
+        # as export_sprite/export_frame.
+        base, ext = os.path.splitext(output_filename)
+        if not os.path.exists(output_filename) and not glob.glob(f"{base}*{ext}"):
+            success = False
+            output = "Aseprite exited 0 but wrote no file"
     if success:
         return f"Tag '{tag_name}' exported to {output_filename}"
     return f"Failed to export tag: {output}"
