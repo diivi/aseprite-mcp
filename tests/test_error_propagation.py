@@ -14,6 +14,7 @@ from aseprite_mcp.tools import (
     drawing,
     export,
     palette,
+    pixel_read,
     quality,
     scene,
     transform,
@@ -52,6 +53,27 @@ def test_ensure_layers_present_all_missing(sprite):
 def test_export_sprite_unwritable_format(sprite):
     # Aseprite exits 0 but writes nothing for format="json".
     failed(run(export.export_sprite(sprite, "/tmp/ase-pytest/err_out", "json")))
+
+
+def test_export_tag_missing_tag(sprite):
+    # --tag silently exports *all* frames (exit 0) for an unknown tag, so the
+    # tool must validate the tag rather than report a fabricated tag export.
+    failed(run(export.export_tag(sprite, "NO_SUCH_TAG", "/tmp/ase-pytest/err_tag.gif")))
+
+
+def test_export_spritesheet_missing_tag(sprite):
+    failed(run(export.export_spritesheet(
+        sprite, "/tmp/ase-pytest/err_sheet.png", "horizontal", "", 1, 0, "NO_SUCH_TAG")))
+
+
+# --- readers surfaced a hard error as data (read as success); now fail loudly ---
+
+def test_get_pixel_color_missing_layer(sprite):
+    failed(run(pixel_read.get_pixel_color(sprite, 0, 0, "NO_SUCH_LAYER")))
+
+
+def test_get_pixels_rect_missing_layer(sprite):
+    failed(run(pixel_read.get_pixels_rect(sprite, 0, 0, 4, 4, "NO_SUCH_LAYER")))
 
 
 # --- copy_layers_between_sprites: all-missing fails; partial surfaces skips ---

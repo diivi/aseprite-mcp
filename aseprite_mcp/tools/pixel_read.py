@@ -68,7 +68,7 @@ async def get_pixel_color(
 
     for line in output.splitlines():
         if line.startswith("ERROR:"):
-            return line[6:]
+            return f"Failed to read pixel: {line[6:]}"
         if line.startswith("PIXEL:"):
             parts = line[6:].split(",")
             r, g, b, a = int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3])
@@ -162,7 +162,7 @@ async def get_pixels_rect(
     pixels = []
     for line in output.splitlines():
         if line.startswith("ERROR:"):
-            return line[6:]
+            return f"Failed to read pixels: {line[6:]}"
         if line.startswith("PIXEL:"):
             parts = line[6:].split(",")
             px, py, r, g, b, a = [int(p) for p in parts]

@@ -64,10 +64,10 @@ async def get_palette(filename: str) -> str:
 
     script = """
     local spr = app.activeSprite
-    if not spr then print("No active sprite") return end
+    if not spr then print("ERROR:No active sprite") return end
 
     local ok, pal = pcall(function() return spr.palettes[1] end)
-    if not ok or not pal then print("No palette") return end
+    if not ok or not pal then print("ERROR:No palette") return end
 
     local parts = {}
     local size = #pal
@@ -84,7 +84,7 @@ async def get_palette(filename: str) -> str:
     print(table.concat(parts))
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return output
     return f"Failed to get palette: {output}"

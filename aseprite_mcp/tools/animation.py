@@ -168,7 +168,7 @@ async def get_sprite_info(filename: str) -> str:
     # NOTE: batch mode discards Lua `return` values — output MUST go through print().
     script = """
     local spr = app.activeSprite
-    if not spr then print("No active sprite") return end
+    if not spr then print("ERROR:No active sprite") return end
 
     local cm = "unknown"
     if spr.colorMode == ColorMode.RGB then cm = "rgb"
@@ -207,7 +207,7 @@ async def get_sprite_info(filename: str) -> str:
     print(table.concat(parts))
     """
 
-    success, output = AsepriteCommand.execute_lua_script(script, filename)
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
         return output
     return f"Failed to get sprite info: {output}"
