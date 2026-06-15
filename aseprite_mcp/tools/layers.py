@@ -100,16 +100,21 @@ async def rename_layer(filename: str, layer_name: str, new_name: str) -> str:
 
 
 @mcp.tool()
-async def duplicate_layer(filename: str, layer_name: str, new_name: str = "") -> str:
+async def duplicate_layer(
+    filename: str, layer_name: str, new_name: str = "", group: str = ""
+) -> str:
     """Duplicate a layer with all its cels across every frame.
 
-    The copy is placed directly above the source layer and inherits its
-    opacity and blend mode.
+    The copy inherits the source's opacity and blend mode. By default it is
+    placed directly above the source layer; pass `group` to place it inside a
+    group instead.
 
     Args:
         filename: Aseprite file to modify
-        layer_name: Layer to duplicate
+        layer_name: Layer to duplicate, by name or "group/subgroup/layer" path
         new_name: Name for the copy (default: "<layer_name> copy")
+        group: Optional group to place the copy inside, by name or
+            "group/subgroup" path (default: directly above the source)
     """
     if not os.path.exists(filename):
         return f"File {filename} not found"
@@ -117,6 +122,7 @@ async def duplicate_layer(filename: str, layer_name: str, new_name: str = "") ->
     final_name = new_name or f"{layer_name} copy"
     safe_layer = lua_escape(layer_name)
     safe_new = lua_escape(final_name)
+    safe_group = lua_escape(group)
     script = f"""
     {FIND_LAYER}
     local spr = app.activeSprite
@@ -125,12 +131,23 @@ async def duplicate_layer(filename: str, layer_name: str, new_name: str = "") ->
     local src = find_layer(spr, "{safe_layer}")
     if not src then print("ERROR:Layer not found") return end
 
+    local parent = nil
+    if "{safe_group}" ~= "" then
+        parent = find_layer(spr, "{safe_group}")
+        if not parent then print("ERROR:Group not found") return end
+        if not parent.isGroup then print("ERROR:Target is not a group") return end
+    end
+
     app.transaction(function()
         local copy = spr:newLayer()
         copy.name = "{safe_new}"
         copy.opacity = src.opacity
         copy.blendMode = src.blendMode
-        copy.stackIndex = src.stackIndex + 1
+        if parent then
+            copy.parent = parent
+        else
+            copy.stackIndex = src.stackIndex + 1
+        end
         for _, frame in ipairs(spr.frames) do
             local cel = src:cel(frame)
             if cel then
@@ -146,7 +163,8 @@ async def duplicate_layer(filename: str, layer_name: str, new_name: str = "") ->
 
     success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
     if success:
-        return f"Layer '{layer_name}' duplicated as '{final_name}' in {filename}"
+        location = f" inside group '{group}'" if group else ""
+        return f"Layer '{layer_name}' duplicated as '{final_name}'{location} in {filename}"
     return f"Failed to duplicate layer: {output}"
 
 

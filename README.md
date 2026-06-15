@@ -2,7 +2,7 @@
 
 A Python MCP server that gives AI assistants full control over [Aseprite](https://www.aseprite.org/) for creating pixel art and animated sprites.
 
-**103 tools across 17 categories** — canvas, drawing, layers, animation, palettes, effects, slices, tilemaps, exports, visual-feedback/analysis tools, and a raw Lua escape hatch. The tool set is designed so an LLM has everything it needs to produce *good* pixel art, not just primitives: shading ramps with hue shifting, ordered dithering, outlines, retro palette presets with quantization, onion-skin renders, and frame diffing for animation work.
+**104 tools across 17 categories** — canvas, drawing, layers, animation, palettes, effects, slices, tilemaps, exports, visual-feedback/analysis tools, and a raw Lua escape hatch. The tool set is designed so an LLM has everything it needs to produce *good* pixel art, not just primitives: shading ramps with hue shifting, ordered dithering, outlines, retro palette presets with quantization, onion-skin renders, and frame diffing for animation work.
 
 ## Example: a swordsman, drawn and animated by Claude
 
@@ -52,7 +52,8 @@ Both were created end-to-end by Claude Fable 5 through this server's MCP tools �
 | Tool | Description |
 |------|-------------|
 | `create_canvas` | Create a new sprite with the given dimensions |
-| `add_layer` | Add a new layer |
+| `add_layer` | Add a new layer, optionally inside a named group |
+| `add_group` | Add a new (optionally nested) group layer |
 | `add_frame` | Append a new frame |
 | `set_frame` | Set the active frame |
 | `set_frame_duration` | Set one frame's duration in ms |
@@ -81,7 +82,7 @@ All `_at` variants target a specific layer/frame and can create the cel on deman
 |------|-------------|
 | `delete_layer` | Delete a layer by name |
 | `rename_layer` | Rename a layer |
-| `duplicate_layer` | Duplicate a layer with all cels, opacity, and blend mode |
+| `duplicate_layer` | Duplicate a layer with all cels, opacity, and blend mode, optionally into a group |
 | `reorder_layer` | Move a layer to a position in the stack |
 | `set_layer_blend_mode` | Set blend mode (multiply, screen, overlay, ... 19 modes) |
 | `merge_layer_down` | Merge a layer into the one below it |

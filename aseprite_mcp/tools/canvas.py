@@ -33,24 +33,36 @@ async def create_canvas(width: int, height: int, filename: str = "canvas.aseprit
         return f"Failed to create canvas: {output}"
 
 @mcp.tool()
-async def add_layer(filename: str, layer_name: str) -> str:
+async def add_layer(filename: str, layer_name: str, group: str = "") -> str:
     """Add a new layer to the Aseprite file.
 
     Args:
         filename: Name of the Aseprite file to modify
         layer_name: Name of the new layer
+        group: Optional group to place the new layer inside, by name or
+            "group/subgroup" path (default: top level)
     """
     if not os.path.exists(filename):
         return f"File {filename} not found"
-    
+
     safe_layer_name = lua_escape(layer_name)
+    safe_group = lua_escape(group)
     script = f"""
+    {FIND_LAYER}
     local spr = app.activeSprite
     if not spr then print("ERROR:No active sprite") return end
 
+    local parent = nil
+    if "{safe_group}" ~= "" then
+        parent = find_layer(spr, "{safe_group}")
+        if not parent then print("ERROR:Group not found") return end
+        if not parent.isGroup then print("ERROR:Target is not a group") return end
+    end
+
     app.transaction(function()
-        spr:newLayer()
-        app.activeLayer.name = "{safe_layer_name}"
+        local lyr = spr:newLayer()
+        lyr.name = "{safe_layer_name}"
+        if parent then lyr.parent = parent end
     end)
 
     spr:saveAs(spr.filename)
@@ -60,9 +72,57 @@ async def add_layer(filename: str, layer_name: str) -> str:
     success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
 
     if success:
-        return f"Layer '{layer_name}' added successfully to {filename}"
+        location = f" inside group '{group}'" if group else ""
+        return f"Layer '{layer_name}' added{location} to {filename}"
     else:
         return f"Failed to add layer: {output}"
+
+@mcp.tool()
+async def add_group(filename: str, group_name: str, parent_group: str = "") -> str:
+    """Add a new, empty group layer.
+
+    Combine with add_layer(group=...) / duplicate_layer(group=...) to build a
+    grouped layer structure.
+
+    Args:
+        filename: Name of the Aseprite file to modify
+        group_name: Name of the new group
+        parent_group: Optional existing group to nest the new group inside, by
+            name or "group/subgroup" path (default: top level)
+    """
+    if not os.path.exists(filename):
+        return f"File {filename} not found"
+
+    safe_group = lua_escape(group_name)
+    safe_parent = lua_escape(parent_group)
+    script = f"""
+    {FIND_LAYER}
+    local spr = app.activeSprite
+    if not spr then print("ERROR:No active sprite") return end
+
+    local parent = nil
+    if "{safe_parent}" ~= "" then
+        parent = find_layer(spr, "{safe_parent}")
+        if not parent then print("ERROR:Parent group not found") return end
+        if not parent.isGroup then print("ERROR:Target is not a group") return end
+    end
+
+    app.transaction(function()
+        local grp = spr:newGroup()
+        grp.name = "{safe_group}"
+        if parent then grp.parent = parent end
+    end)
+
+    spr:saveAs(spr.filename)
+    print("OK")
+    """
+
+    success, output = AsepriteCommand.execute_lua_script_checked(script, filename)
+
+    if success:
+        location = f" inside '{parent_group}'" if parent_group else ""
+        return f"Group '{group_name}' created{location} in {filename}"
+    return f"Failed to create group: {output}"
 
 @mcp.tool()
 async def add_frame(filename: str) -> str:
