@@ -51,7 +51,14 @@ async def create_tilemap_layer(
     local spr = app.activeSprite
     if not spr then print("ERROR:No active sprite") return end
 
-    if find_layer(spr, "{safe_layer}") then print("ERROR:Layer with that name already exists") return end
+    -- Duplicate-name guard is top-level only: the new layer is created at the
+    -- root, and Aseprite permits the same name inside a different group, so a
+    -- recursive find_layer would reject valid names.
+    local name_taken = false
+    for _, layer in ipairs(spr.layers) do
+        if layer.name == "{safe_layer}" then name_taken = true break end
+    end
+    if name_taken then print("ERROR:Layer with that name already exists") return end
 
     app.transaction(function()
         spr.gridBounds = Rectangle(0, 0, {tile_width}, {tile_height})

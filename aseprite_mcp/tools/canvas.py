@@ -1,5 +1,6 @@
 import os
 from ..core.commands import AsepriteCommand, lua_escape, reject_traversal
+from ..core.lua import FIND_LAYER
 from .. import mcp
 
 @mcp.tool()
@@ -184,13 +185,8 @@ async def set_layer(filename: str, layer_name: str, create_if_missing: bool = Fa
     local spr = app.activeSprite
     if not spr then print("ERROR:No active sprite") return end
 
-    local target = nil
-    for i, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then
-            target = layer
-            break
-        end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
 
     app.transaction(function()
         if not target then

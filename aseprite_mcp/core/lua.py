@@ -5,14 +5,52 @@ with them should print "ERROR:<message>" to signal failure and be run
 through AsepriteCommand.execute_lua_script_checked.
 """
 
-# Find a top-level layer by name (same convention as the rest of the
-# codebase: groups are not traversed).
+# Resolve a layer by name, searching inside groups.
+#
+#   1. An exact full-name match (including any "/") is tried first, breadth-
+#      first, so a shallower layer wins over a deeper namesake and a layer or
+#      group whose own name contains "/" is reachable directly.
+#   2. Otherwise the name is read as a "group/child" path. Aseprite allows "/"
+#      inside names, so segments are matched longest-prefix-first with
+#      backtracking: "abc/x/y" resolves a group named "abc/x" then child "y",
+#      yet a genuine "abc" -> "x" -> "y" hierarchy still resolves because a
+#      dead-end longer prefix falls back to the shorter one. When two parses
+#      are both valid the longest leading group name wins.
+#
+# Used for *operation* lookups — duplicate-name guards must stay top-level,
+# since Aseprite permits the same name in different groups.
 FIND_LAYER = """
 local function find_layer(spr, name)
-    for _, layer in ipairs(spr.layers) do
+    local queue = {}
+    for _, layer in ipairs(spr.layers) do queue[#queue + 1] = layer end
+    local head = 1
+    while head <= #queue do
+        local layer = queue[head]
+        head = head + 1
         if layer.name == name then return layer end
+        if layer.isGroup then
+            for _, child in ipairs(layer.layers) do queue[#queue + 1] = child end
+        end
     end
-    return nil
+    if not string.find(name, "/", 1, true) then return nil end
+    local segs = {}
+    for segment in string.gmatch(name, "[^/]+") do segs[#segs + 1] = segment end
+    local function resolve(layers, i)
+        for j = #segs, i, -1 do
+            local cand = table.concat(segs, "/", i, j)
+            for _, layer in ipairs(layers) do
+                if layer.name == cand then
+                    if j == #segs then return layer end
+                    if layer.isGroup then
+                        local found = resolve(layer.layers, j + 1)
+                        if found then return found end
+                    end
+                end
+            end
+        end
+        return nil
+    end
+    return resolve(spr.layers, 1)
 end
 """
 

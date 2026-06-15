@@ -1,6 +1,7 @@
 import os
 from typing import List
 from ..core.commands import AsepriteCommand, lua_escape, reject_traversal
+from ..core.lua import FIND_LAYER
 from .. import mcp
 
 @mcp.tool()
@@ -42,12 +43,7 @@ async def copy_layers_between_sprites(
     local dst = app.open("{dst_path}")
     if not dst then print("ERROR:Target sprite not opened") return end
 
-    local function find_layer(spr, name)
-        for _, layer in ipairs(spr.layers) do
-            if layer.name == name then return layer end
-        end
-        return nil
-    end
+    {FIND_LAYER}
 
     local names = {layers_lua}
     local missing = {{}}

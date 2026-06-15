@@ -1,5 +1,6 @@
 import os
 from ..core.commands import AsepriteCommand, lua_escape
+from ..core.lua import FIND_LAYER
 from .. import mcp
 
 
@@ -33,10 +34,8 @@ async def flip_layer(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer}")
     if not target then print("ERROR:Layer not found") return end
 
     local cel = target:cel(spr.frames[idx])
@@ -150,10 +149,8 @@ async def rotate_layer(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer}")
     if not target then print("ERROR:Layer not found") return end
 
     local cel = target:cel(spr.frames[idx])

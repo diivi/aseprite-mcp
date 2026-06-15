@@ -167,10 +167,8 @@ async def remap_colors_in_cel_range(
         print("ERROR:Frame range out of bounds") return
     end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     local source_frame = {source_idx}

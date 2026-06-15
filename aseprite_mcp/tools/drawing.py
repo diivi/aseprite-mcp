@@ -1,6 +1,7 @@
 import os
 from typing import List, Dict, Any
 from ..core.commands import AsepriteCommand, lua_escape
+from ..core.lua import FIND_LAYER
 from .. import mcp
 
 
@@ -368,10 +369,8 @@ async def draw_pixels_at(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
@@ -469,10 +468,8 @@ async def draw_line_at(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
@@ -535,10 +532,8 @@ async def draw_rectangle_at(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
@@ -598,10 +593,8 @@ async def draw_circle_at(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
@@ -662,10 +655,8 @@ async def fill_area_at(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
@@ -782,10 +773,8 @@ async def draw_polygon(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
@@ -886,10 +875,8 @@ async def draw_path(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
@@ -964,10 +951,8 @@ async def apply_gradient_rect(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
@@ -1056,10 +1041,8 @@ async def draw_ellipse_at(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    local target = nil
-    for _, layer in ipairs(spr.layers) do
-        if layer.name == "{safe_layer_name}" then target = layer break end
-    end
+    {FIND_LAYER}
+    local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
