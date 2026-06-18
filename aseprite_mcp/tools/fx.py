@@ -1,22 +1,14 @@
 import os
 from ..core.commands import AsepriteCommand, lua_escape
 from ..core.lua import FIND_LAYER, NORMALIZE_CEL, PSET, HSL
+from ..core.colors import parse_hex_color
 from .. import mcp
 
 
 def _parse_hex_color(value: str) -> tuple[int, int, int] | None:
-    if not value:
-        return None
-    hex_color = value.lstrip("#")
-    if len(hex_color) != 6:
-        return None
-    try:
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-    except ValueError:
-        return None
-    return r, g, b
+    """RGB-only parse (alpha dropped); unified via core.colors.parse_hex_color."""
+    rgba = parse_hex_color(value)
+    return rgba[:3] if rgba else None
 
 
 @mcp.tool()

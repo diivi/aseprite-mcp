@@ -1,23 +1,14 @@
 import os
 from typing import List, Dict, Any
 from ..core.commands import AsepriteCommand, lua_escape
-from ..core.lua import FIND_LAYER
+from ..core.lua import FIND_LAYER, NORMALIZE_CEL, PSET
+from ..core.colors import parse_hex_color
 from .. import mcp
 
 
-def _parse_hex_color(value: str) -> tuple[int, int, int] | None:
-    if not value:
-        return None
-    hex_color = value.lstrip("#")
-    if len(hex_color) != 6:
-        return None
-    try:
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-    except ValueError:
-        return None
-    return r, g, b
+def _parse_hex_color(value: str) -> tuple[int, int, int, int] | None:
+    """Parse a hex colour to (r, g, b, a); accepts #RRGGBB and #RRGGBBAA."""
+    return parse_hex_color(value)
 
 
 @mcp.tool()
@@ -63,10 +54,10 @@ async def draw_pixels(filename: str, pixels: List[Dict[str, Any]]) -> str:
         rgb = _parse_hex_color(pixel.get("color", "#000000"))
         if rgb is None:
             return f"Invalid color value: {pixel.get('color')}"
-        r, g, b = rgb
+        r, g, b, a = rgb
 
         script += f"""
-        img:putPixel({x} - cox, {y} - coy, Color({r}, {g}, {b}, 255))
+        img:putPixel({x} - cox, {y} - coy, Color({r}, {g}, {b}, {a}))
         """
 
     script += """
@@ -102,7 +93,7 @@ async def draw_line(filename: str, x1: int, y1: int, x2: int, y2: int, color: st
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
 
     script = f"""
     local spr = app.activeSprite
@@ -149,7 +140,7 @@ async def draw_line(filename: str, x1: int, y1: int, x2: int, y2: int, color: st
         local img = cel.image
         local cox = cel.position.x
         local coy = cel.position.y
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         -- Translate sprite-global args into cel-local space so the
         -- inner Bresenham/putPixel helpers do not need to know about
         -- cel.position.
@@ -188,7 +179,7 @@ async def draw_rectangle(filename: str, x: int, y: int, width: int, height: int,
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
 
     # app.useTool treats both points as inclusive corners, so the second
     # point sits at (x+width-1, y+height-1) for a width x height rect.
@@ -210,7 +201,7 @@ async def draw_rectangle(filename: str, x: int, y: int, width: int, height: int,
             end
         end
 
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         local tool = {'"rectangle"' if not fill else '"filled_rectangle"'}
         app.useTool({{
             tool=tool,
@@ -246,7 +237,7 @@ async def fill_area(filename: str, x: int, y: int, color: str = "#000000") -> st
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
 
     script = f"""
     local spr = app.activeSprite
@@ -263,7 +254,7 @@ async def fill_area(filename: str, x: int, y: int, color: str = "#000000") -> st
             end
         end
 
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         app.useTool({{
             tool="paint_bucket",
             color=color,
@@ -300,7 +291,7 @@ async def draw_circle(filename: str, center_x: int, center_y: int, radius: int, 
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
 
     script = f"""
     local spr = app.activeSprite
@@ -317,7 +308,7 @@ async def draw_circle(filename: str, center_x: int, center_y: int, radius: int, 
             end
         end
 
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         local tool = {'"ellipse"' if not fill else '"filled_ellipse"'}
         app.useTool({{
             tool=tool,
@@ -392,9 +383,9 @@ async def draw_pixels_at(
         rgb = _parse_hex_color(pixel.get("color", "#000000"))
         if rgb is None:
             return f"Invalid color value: {pixel.get('color')}"
-        r, g, b = rgb
+        r, g, b, a = rgb
         script += f"""
-        img:putPixel({x} - cox, {y} - coy, Color({r}, {g}, {b}, 255))
+        img:putPixel({x} - cox, {y} - coy, Color({r}, {g}, {b}, {a}))
         """
 
     script += """
@@ -429,7 +420,7 @@ async def draw_line_at(
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
 
@@ -484,7 +475,7 @@ async def draw_line_at(
         local img = cel.image
         local cox = cel.position.x
         local coy = cel.position.y
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         draw_line(img, {x1} - cox, {y1} - coy, {x2} - cox, {y2} - coy, color, {thickness})
     end)
 
@@ -519,7 +510,7 @@ async def draw_rectangle_at(
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
     x2 = x + width - 1
@@ -545,7 +536,7 @@ async def draw_rectangle_at(
             cel = spr:newCel(target, spr.frames[idx], img, Point(0, 0))
         end
         if not cel then return end
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         local tool = {'"rectangle"' if not fill else '"filled_rectangle"'}
         app.useTool({{
             tool=tool,
@@ -582,7 +573,7 @@ async def draw_circle_at(
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
 
@@ -606,7 +597,7 @@ async def draw_circle_at(
             cel = spr:newCel(target, spr.frames[idx], img, Point(0, 0))
         end
         if not cel then return end
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         local tool = {'"ellipse"' if not fill else '"filled_ellipse"'}
         app.useTool({{
             tool=tool,
@@ -644,7 +635,7 @@ async def fill_area_at(
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
 
@@ -668,7 +659,7 @@ async def fill_area_at(
             cel = spr:newCel(target, spr.frames[idx], img, Point(0, 0))
         end
         if not cel then return end
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         app.useTool({{
             tool="paint_bucket",
             color=color,
@@ -704,25 +695,21 @@ async def draw_polygon(
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
     fill_flag = "true" if fill else "false"
     points_lua = ", ".join([f"{{x={p['x']}, y={p['y']}}}" for p in points])
 
     script = f"""
+    {NORMALIZE_CEL}
+    {PSET}
+    {FIND_LAYER}
     local spr = app.activeSprite
     if not spr then print("ERROR:No active sprite") return end
 
-    local function put_thick(img, x, y, color, size)
-        local r = math.max(0, math.floor(size / 2))
-        for oy = -r, r do
-            for ox = -r, r do
-                img:putPixel(x + ox, y + oy, color)
-            end
-        end
-    end
-
+    -- Points are sprite-global; normalize_cel anchors the cel at (0,0)
+    -- canvas-sized, so no cel-offset math is needed and pset() bounds-guards.
     local function draw_line(img, x0, y0, x1, y1, color)
         local dx = math.abs(x1 - x0)
         local sx = x0 < x1 and 1 or -1
@@ -730,7 +717,7 @@ async def draw_polygon(
         local sy = y0 < y1 and 1 or -1
         local err = dx + dy
         while true do
-            img:putPixel(x0, y0, color)
+            pset(img, x0, y0, color)
             if x0 == x1 and y0 == y1 then break end
             local e2 = 2 * err
             if e2 >= dy then err = err + dy; x0 = x0 + sx end
@@ -763,7 +750,7 @@ async def draw_polygon(
                     local x_start = math.floor(nodes[k] + 0.5)
                     local x_end = math.floor(nodes[k + 1] + 0.5)
                     for x = x_start, x_end do
-                        img:putPixel(x, y, color)
+                        pset(img, x, y, color)
                     end
                 end
             end
@@ -773,30 +760,17 @@ async def draw_polygon(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    {FIND_LAYER}
     local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
         app.activeFrame = spr.frames[idx]
-        local cel = target:cel(spr.frames[idx])
-        if not cel and {create_flag} then
-            local img = Image(spr.width, spr.height, spr.colorMode)
-            cel = spr:newCel(target, spr.frames[idx], img, Point(0, 0))
-        end
+        local cel = normalize_cel(spr, target, spr.frames[idx], {create_flag})
         if not cel then return end
         local img = cel.image
-        local cox = cel.position.x
-        local coy = cel.position.y
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         local pts = {{ {points_lua} }}
-        -- Pre-translate points into cel-local space so the helpers
-        -- can stay generic.
-        for i = 1, #pts do
-            pts[i].x = pts[i].x - cox
-            pts[i].y = pts[i].y - coy
-        end
         if {fill_flag} then
             fill_polygon(img, pts, color)
         end
@@ -835,20 +809,23 @@ async def draw_path(
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
     points_lua = ", ".join([f"{{x={p['x']}, y={p['y']}}}" for p in points])
 
     script = f"""
+    {NORMALIZE_CEL}
+    {PSET}
+    {FIND_LAYER}
     local spr = app.activeSprite
     if not spr then print("ERROR:No active sprite") return end
 
     local function put_thick(img, x, y, color, size)
-        local r = math.max(0, math.floor(size / 2))
-        for oy = -r, r do
-            for ox = -r, r do
-                img:putPixel(x + ox, y + oy, color)
+        local rad = math.max(0, math.floor(size / 2))
+        for oy = -rad, rad do
+            for ox = -rad, rad do
+                pset(img, x + ox, y + oy, color)
             end
         end
     end
@@ -863,7 +840,7 @@ async def draw_path(
             if size > 1 then
                 put_thick(img, x0, y0, color, size)
             else
-                img:putPixel(x0, y0, color)
+                pset(img, x0, y0, color)
             end
             if x0 == x1 and y0 == y1 then break end
             local e2 = 2 * err
@@ -875,28 +852,17 @@ async def draw_path(
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    {FIND_LAYER}
     local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
         app.activeFrame = spr.frames[idx]
-        local cel = target:cel(spr.frames[idx])
-        if not cel and {create_flag} then
-            local img = Image(spr.width, spr.height, spr.colorMode)
-            cel = spr:newCel(target, spr.frames[idx], img, Point(0, 0))
-        end
+        local cel = normalize_cel(spr, target, spr.frames[idx], {create_flag})
         if not cel then return end
         local img = cel.image
-        local cox = cel.position.x
-        local coy = cel.position.y
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         local pts = {{ {points_lua} }}
-        for i = 1, #pts do
-            pts[i].x = pts[i].x - cox
-            pts[i].y = pts[i].y - coy
-        end
         for i = 1, #pts - 1 do
             draw_line(img, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, color, {thickness})
         end
@@ -938,35 +904,31 @@ async def apply_gradient_rect(
     if end_rgb is None:
         return f"Invalid color_end value: {color_end}"
 
-    sr, sg, sb = start_rgb
-    er, eg, eb = end_rgb
+    sr, sg, sb, sa = start_rgb
+    er, eg, eb, ea = end_rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
     horiz_flag = "true" if horizontal else "false"
 
     script = f"""
+    {NORMALIZE_CEL}
+    {PSET}
+    {FIND_LAYER}
     local spr = app.activeSprite
     if not spr then print("ERROR:No active sprite") return end
 
     local idx = {frame_index}
     if idx < 1 or idx > #spr.frames then print("ERROR:Frame index out of range") return end
 
-    {FIND_LAYER}
     local target = find_layer(spr, "{safe_layer_name}")
     if not target then print("ERROR:Layer not found") return end
 
     app.transaction(function()
         app.activeLayer = target
         app.activeFrame = spr.frames[idx]
-        local cel = target:cel(spr.frames[idx])
-        if not cel and {create_flag} then
-            local img = Image(spr.width, spr.height, spr.colorMode)
-            cel = spr:newCel(target, spr.frames[idx], img, Point(0, 0))
-        end
+        local cel = normalize_cel(spr, target, spr.frames[idx], {create_flag})
         if not cel then return end
         local img = cel.image
-        local cox = cel.position.x
-        local coy = cel.position.y
         local w = {width}
         local h = {height}
         for iy = 0, h - 1 do
@@ -980,7 +942,8 @@ async def apply_gradient_rect(
                 local r = math.floor({sr} + ({er} - {sr}) * t + 0.5)
                 local g = math.floor({sg} + ({eg} - {sg}) * t + 0.5)
                 local b = math.floor({sb} + ({eb} - {sb}) * t + 0.5)
-                img:putPixel({x} + ix - cox, {y} + iy - coy, Color(r, g, b, 255))
+                local a = math.floor({sa} + ({ea} - {sa}) * t + 0.5)
+                pset(img, {x} + ix, {y} + iy, Color(r, g, b, a))
             end
         end
     end)
@@ -1030,7 +993,7 @@ async def draw_ellipse_at(
     rgb = _parse_hex_color(color)
     if rgb is None:
         return f"Invalid color value: {color}"
-    r, g, b = rgb
+    r, g, b, a = rgb
     safe_layer_name = lua_escape(layer_name)
     create_flag = "true" if create_if_missing else "false"
 
@@ -1054,7 +1017,7 @@ async def draw_ellipse_at(
             cel = spr:newCel(target, spr.frames[idx], img, Point(0, 0))
         end
         if not cel then return end
-        local color = Color({r}, {g}, {b}, 255)
+        local color = Color({r}, {g}, {b}, {a})
         local tool = {'"filled_ellipse"' if fill else '"ellipse"'}
         app.useTool({{
             tool=tool,
