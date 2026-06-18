@@ -14,9 +14,14 @@ from aseprite_mcp.tools import animation, canvas, drawing, layers
 
 
 def _top_level(path):
-    """Map of top-level layer name -> is_group (get_sprite_info is top-level only)."""
+    """Map of top-level layer name -> is_group.
+
+    get_sprite_info now enumerates nested layers too (each with a "parent"),
+    so filter to parent==None for the top level.
+    """
     info = json.loads(run(animation.get_sprite_info(path)))
-    return {layer["name"]: layer["is_group"] for layer in info["layers"]}
+    return {layer["name"]: layer["is_group"]
+            for layer in info["layers"] if layer.get("parent") is None}
 
 
 @pytest.fixture

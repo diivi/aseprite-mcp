@@ -179,13 +179,21 @@ async def get_sprite_info(filename: str) -> str:
     end
     table.insert(parts, "],")
     table.insert(parts, "\\"layers\\":[")
-    for i, layer in ipairs(spr.layers) do
-        local entry = "{\\"name\\":" .. string.format("%q", layer.name) .. ",\\"visible\\":" .. tostring(layer.isVisible) .. ",\\"opacity\\":" .. (layer.opacity or 255) .. ",\\"is_group\\":" .. tostring(layer.isGroup) .. "}"
-        table.insert(parts, entry)
-        if i < #spr.layers then
-            table.insert(parts, ",")
+    -- Recurse into groups so nested layers are enumerated too; each entry
+    -- carries its immediate parent group name (null at top level).
+    local first_layer = true
+    local function walk_layers(layers, parent)
+        for _, layer in ipairs(layers) do
+            if not first_layer then table.insert(parts, ",") end
+            first_layer = false
+            local pj = "null"
+            if parent then pj = string.format("%q", parent) end
+            local entry = "{\\"name\\":" .. string.format("%q", layer.name) .. ",\\"visible\\":" .. tostring(layer.isVisible) .. ",\\"opacity\\":" .. (layer.opacity or 255) .. ",\\"is_group\\":" .. tostring(layer.isGroup) .. ",\\"parent\\":" .. pj .. "}"
+            table.insert(parts, entry)
+            if layer.isGroup then walk_layers(layer.layers, layer.name) end
         end
     end
+    walk_layers(spr.layers, nil)
     table.insert(parts, "],")
     local dirs = {[0]="forward", "reverse", "pingpong", "pingpong_reverse"}
     table.insert(parts, "\\"tags\\":[")
