@@ -158,25 +158,26 @@ async def list_slices(filename: str) -> str:
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
+    # Emit one JSON object per slice (name via Lua %q) instead of a
+    # '|'-delimited line, so a '|' (or comma/colon) in a slice name can no
+    # longer break the parse for the whole sprite.
     script = """
     local spr = app.activeSprite
     if not spr then print("ERROR:No active sprite") return end
 
     for _, slice in ipairs(spr.slices) do
         local b = slice.bounds
-        local line = string.format("SLICE:%s|%d,%d,%d,%d", slice.name, b.x, b.y, b.width, b.height)
+        local parts = {}
+        parts[#parts + 1] = string.format('"name":%s', string.format("%q", slice.name))
+        parts[#parts + 1] = string.format('"x":%d,"y":%d,"width":%d,"height":%d', b.x, b.y, b.width, b.height)
         if slice.center then
             local c = slice.center
-            line = line .. string.format("|%d,%d,%d,%d", c.x, c.y, c.width, c.height)
-        else
-            line = line .. "|"
+            parts[#parts + 1] = string.format('"center":{"x":%d,"y":%d,"width":%d,"height":%d}', c.x, c.y, c.width, c.height)
         end
         if slice.pivot then
-            line = line .. string.format("|%d,%d", slice.pivot.x, slice.pivot.y)
-        else
-            line = line .. "|"
+            parts[#parts + 1] = string.format('"pivot":{"x":%d,"y":%d}', slice.pivot.x, slice.pivot.y)
         end
-        print(line)
+        print("SLICE:{" .. table.concat(parts, ",") .. "}")
     end
     print("DONE")
     """
@@ -189,16 +190,7 @@ async def list_slices(filename: str) -> str:
     for line in output.splitlines():
         if not line.startswith("SLICE:"):
             continue
-        name, bounds, center, pivot = line[len("SLICE:"):].split("|")
-        bx, by, bw, bh = [int(v) for v in bounds.split(",")]
-        entry = {"name": name, "x": bx, "y": by, "width": bw, "height": bh}
-        if center:
-            cx, cy, cw, ch = [int(v) for v in center.split(",")]
-            entry["center"] = {"x": cx, "y": cy, "width": cw, "height": ch}
-        if pivot:
-            px, py = [int(v) for v in pivot.split(",")]
-            entry["pivot"] = {"x": px, "y": py}
-        slices.append(entry)
+        slices.append(json.loads(line[len("SLICE:"):]))
     return json.dumps(slices)
 
 
