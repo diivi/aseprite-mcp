@@ -211,7 +211,7 @@ async def export_spritesheet(
         err = reject_traversal(data_filename)
         if err:
             return err
-        args += ["--data", data_filename, "--format", "json-array"]
+        args += ["--data", data_filename, "--format", "json-hash", "--list-tags"]
     args += ["--sheet", output_filename]
 
     success, output = AsepriteCommand.run_command(args)
