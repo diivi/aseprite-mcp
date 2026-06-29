@@ -148,6 +148,8 @@ async def export_spritesheet(
     scale: int = 1,
     padding: int = 0,
     tag_name: str = "",
+    data_format: str = "json-array",
+    list_tags: bool = False,
 ) -> str:
     """Export frames as a sprite sheet, optionally with a JSON data file.
 
@@ -155,10 +157,12 @@ async def export_spritesheet(
         filename: Aseprite file to export
         output_filename: Output sheet image path (PNG)
         sheet_type: Layout: "horizontal", "vertical", "rows", "columns", or "packed"
-        data_filename: Optional path for a JSON metadata file (json-array format)
+        data_filename: Optional path for a JSON metadata file
         scale: Integer scale factor applied before packing (default 1)
         padding: Padding in pixels between frames (default 0)
         tag_name: Only include frames of this animation tag (default: all frames)
+        data_format: JSON format for the data file: "json-array" (default) or "json-hash"
+        list_tags: Include animation tag metadata in the JSON data file (default: False)
     """
     if not os.path.exists(filename):
         return f"File {filename} not found"
@@ -168,6 +172,8 @@ async def export_spritesheet(
         return "scale must be between 1 and 64"
     if padding < 0:
         return "padding must be >= 0"
+    if data_format not in ("json-array", "json-hash"):
+        return "data_format must be 'json-array' or 'json-hash'"
     err = reject_traversal(output_filename)
     if err:
         return err
@@ -211,7 +217,9 @@ async def export_spritesheet(
         err = reject_traversal(data_filename)
         if err:
             return err
-        args += ["--data", data_filename, "--format", "json-hash", "--list-tags"]
+        args += ["--data", data_filename, "--format", data_format]
+        if list_tags:
+            args.append("--list-tags")
     args += ["--sheet", output_filename]
 
     success, output = AsepriteCommand.run_command(args)
