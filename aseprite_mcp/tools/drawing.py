@@ -413,7 +413,20 @@ async def draw_line_at(
     thickness: int = 1,
     create_if_missing: bool = True
 ) -> str:
-    """Draw a line on a specific layer/frame."""
+    """Draw a line on a specific layer/frame.
+
+    Args:
+        filename (str): The path to the Aseprite file.
+        layer_name (str): The name of the layer to draw on.
+        frame_index (int): The index of the frame to draw on.
+        x1 (int): The x coordinate of the first point of the line.
+        y1 (int): The y coordinate of the first point of the line.
+        x2 (int): The x coordinate of the second point of the line.
+        y2 (int): The y coordinate of the second point of the line.
+        color (str, optional): The color to draw the line with. Defaults to "#000000".
+        thickness (int, optional): The thickness of the line. Defaults to 1.
+        create_if_missing (bool, optional): Whether to create the layer if it doesn't exist. Defaults to True.
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
@@ -501,7 +514,20 @@ async def draw_rectangle_at(
     fill: bool = False,
     create_if_missing: bool = True
 ) -> str:
-    """Draw a rectangle on a specific layer/frame."""
+    """Draw a rectangle on a specific layer/frame.
+
+    Args:
+        filename (str): The path to the Aseprite file.
+        layer_name (str): The name of the layer to draw on.
+        frame_index (int): The index of the frame to draw on.
+        x (int): The x coordinate of the top-left corner of the rectangle.
+        y (int): The y coordinate of the top-left corner of the rectangle.
+        width (int): The width of the rectangle.
+        height (int): The height of the rectangle.
+        color (str, optional): The color to draw the rectangle with. Defaults to "#000000".
+        fill (bool, optional): Whether to fill the rectangle. Defaults to False.
+        create_if_missing (bool, optional): Whether to create the layer if it doesn't exist. Defaults to True.
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
     if width <= 0 or height <= 0:
@@ -566,7 +592,19 @@ async def draw_circle_at(
     fill: bool = False,
     create_if_missing: bool = True
 ) -> str:
-    """Draw a circle on a specific layer/frame."""
+    """Draw a circle on a specific layer/frame.
+
+    Args:
+        filename (str): The path to the Aseprite file.
+        layer_name (str): The name of the layer to draw on.
+        frame_index (int): The index of the frame to draw on.
+        center_x (int): The x coordinate of the center of the circle.
+        center_y (int): The y coordinate of the center of the circle.
+        radius (int): The radius of the circle.
+        color (str, optional): The color to draw the circle with. Defaults to "#000000".
+        fill (bool, optional): Whether to fill the circle. Defaults to False.
+        create_if_missing (bool, optional): Whether to create the layer if it doesn't exist. Defaults to True.
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
@@ -628,7 +666,17 @@ async def fill_area_at(
     color: str = "#000000",
     create_if_missing: bool = True
 ) -> str:
-    """Fill an area on a specific layer/frame."""
+    """Fill an area on a specific layer/frame.
+
+    Args:
+        filename (str): The path to the Aseprite file.
+        layer_name (str): The name of the layer to draw on.
+        frame_index (int): The index of the frame to draw on.
+        x (int): The x coordinate of the point to start filling from.
+        y (int): The y coordinate of the point to start filling from.
+        color (str, optional): The color to fill the area with. Defaults to "#000000".
+        create_if_missing (bool, optional): Whether to create the layer if it doesn't exist. Defaults to True.
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
 
@@ -686,7 +734,17 @@ async def draw_polygon(
     fill: bool = False,
     create_if_missing: bool = True
 ) -> str:
-    """Draw a polygon on a specific layer/frame."""
+    """Draw a polygon on a specific layer/frame.
+
+    Args:
+        filename (str): The path to the Aseprite file.
+        layer_name (str): The name of the layer to draw on.
+        frame_index (int): The index of the frame to draw on.
+        points (List[Dict[str, int]]): The list of points to draw the polygon.
+        color (str, optional): The color to draw the polygon with. Defaults to "#000000".
+        fill (bool, optional): Whether to fill the polygon. Defaults to False.
+        create_if_missing (bool, optional): Whether to create the layer if it doesn't exist. Defaults to True.
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
     if len(points) < 3:
@@ -800,7 +858,17 @@ async def draw_path(
     thickness: int = 1,
     create_if_missing: bool = True
 ) -> str:
-    """Draw a path using a polyline on a specific layer/frame."""
+    """Draw a path using a polyline on a specific layer/frame.
+
+    Args:
+        filename (str): The path to the Aseprite file.
+        layer_name (str): The name of the layer to draw on.
+        frame_index (int): The index of the frame to draw on.
+        points (List[Dict[str, int]]): The points to draw the path with.
+        color (str, optional): The color to draw the path with. Defaults to "#000000".
+        thickness (int, optional): The thickness of the path. Defaults to 1.
+        create_if_missing (bool, optional): Whether to create the layer if it doesn't exist. Defaults to True.
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
     if len(points) < 2:
@@ -891,7 +959,21 @@ async def apply_gradient_rect(
     horizontal: bool = True,
     create_if_missing: bool = True
 ) -> str:
-    """Apply a linear gradient fill to a rectangle."""
+    """Apply a linear gradient fill to a rectangle.
+
+    Args:
+        filename (str): The path to the Aseprite file.
+        layer_name (str): The name of the layer to draw on.
+        frame_index (int): The index of the frame to draw on.
+        x (int): The x coordinate of the rectangle to draw on.
+        y (int): The y coordinate of the rectangle to draw on.
+        width (int): The width of the rectangle to draw on.
+        height (int): The height of the rectangle to draw on.
+        color_start (str): The start color of the gradient.
+        color_end (str): The end color of the gradient.
+        horizontal (bool, optional): Whether to draw the gradient horizontally. Defaults to True.
+        create_if_missing (bool, optional): Whether to create the layer if it doesn't exist. Defaults to True.
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
     if width <= 0 or height <= 0:
