@@ -126,7 +126,17 @@ async def remap_colors_in_cel_range(
     create_missing_cels: bool = False,
     source_frame_index: int | None = None
 ) -> str:
-    """Remap colors in a layer across a frame range using explicit mappings."""
+    """Remap colors in a layer across a frame range using explicit mappings.
+
+    Args:
+        filename (str): The path to the Aseprite file.
+        layer_name (str): The name of the layer to remap colors in.
+        start_frame (int): The start frame index to remap colors in.
+        end_frame (int): The end frame index to remap colors in.
+        mappings (List[dict]): The color mappings to use.
+        create_missing_cels (bool, optional): Whether to create missing cels. Defaults to False.
+        source_frame_index (int | None, optional): The source frame index to use for remapping. Defaults to None.
+    """
     if not os.path.exists(filename):
         return f"File {filename} not found"
     if not mappings:
