@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28.1",
     "mcp[cli]>=1.6.0",
+    "pillow>=10.0.0",
 ]
 
 [dependency-groups]

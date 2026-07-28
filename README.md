@@ -31,6 +31,7 @@ Both were created end-to-end by Claude Fable 5 through this server's MCP tools �
 |----------|------:|-------------|
 | [Canvas](#canvas) | 6 | Create sprites, manage layers/frames, set the active state |
 | [Drawing](#drawing) | 14 | Pixels, lines, rectangles, circles, ellipses, polygons, paths, fills, gradients |
+| [Text](#text) | 3 | Draw and measure text with bitmap sprite-sheet or TrueType fonts |
 | [Layers](#layers) | 7 | Delete, rename, duplicate, reorder, blend modes, merge, flatten |
 | [Selection & Regions](#selection--regions) | 4 | Move, copy, and erase rectangular regions or colors |
 | [Effects](#effects) | 5 | Outlines, color replacement, HSL adjustment, ordered dithering |
@@ -75,6 +76,52 @@ All `_at` variants target a specific layer/frame and can create the cel on deman
 | `draw_path` | Polyline through a point list with thickness |
 | `fill_area` / `fill_area_at` | Paint-bucket flood fill |
 | `apply_gradient_rect` | Smooth linear gradient fill in a rectangle |
+
+### Text
+
+Aseprite's Lua API has no text drawing, so glyphs are rasterised on the server and composited into the sprite. Two font backends are supported: **bitmap** sprite-sheet fonts (the right choice for pixel art — glyphs are already pixels and `size` scales them by whole numbers) and **TrueType** `.ttf`/`.otf` files, rendered without antialiasing unless you ask for it.
+
+Fonts are discovered in `~/.aseprite-mcp/fonts`: a bitmap font is a directory containing `font.json` plus its sheet PNGs; a TrueType font is just the font file. Installed system fonts are listed too. `font` also accepts a direct path.
+
+| Tool | Description |
+|------|-------------|
+| `list_text_fonts` | List the bitmap and TrueType fonts available to `draw_text` |
+| `measure_text` | Width, height, advance and baseline extents — size a panel or centre a label without redrawing to find out |
+| `draw_text` | Draw text with anchors, faux bold, outline, drop shadow and letter spacing |
+
+Call `measure_text` first when the layout depends on the text: it returns the same metrics `draw_text` will use, so a label can be centred or a plate sized in one pass.
+
+```
+measure_text(text="MODERATOR", font="minecraft", size=2, bold=1)
+  -> width=115 height=15 advance_width=117 above_baseline=14 below_baseline=1 left_bearing=0
+
+draw_text(filename="badge.aseprite", text="MODERATOR", x=64, y=17,
+          font="minecraft", size=2, anchor="baseline", bold=1,
+          color="#FFFFFF", shadow_color="#14237A")
+```
+
+Anchors are `topleft`/`top`/`topright`, `left`/`center`/`right`, `bottomleft`/`bottom`/`bottomright`, plus `baselineleft`/`baseline`/`baselineright` for pinning several labels to one baseline. Outline and shadow grow the stamp but never move the glyphs.
+
+#### font.json
+
+```json
+{
+  "name": "my-font",
+  "letter_gap": 1,
+  "space_width": 3,
+  "sheets": [{
+    "file": "sheet.png",
+    "cell_w": 8, "cell_h": 8,
+    "ascent": 7,
+    "chars": [" !\"#$%&'()*+,-./", "0123456789:;<=>?"]
+  }],
+  "overrides": {
+    "86": {"ascent": 7, "rows": ["#...#", "#...#", ".#.#.", "..#.."]}
+  }
+}
+```
+
+Each sheet carries its own `ascent`, so sheets with different cell sizes still share a baseline — that is how a compact ASCII sheet and a taller accented sheet combine into one run. `origin` shifts the cell grid when the sheet has a margin, `ink_rule: "dark"` reads sheets that use an opaque white background to delimit variable-width glyph boxes, and `advance: "box"` takes the advance from the box rather than the ink. `overrides` replaces individual glyphs with hand-drawn rows, which is useful when a sheet ships a glyph that is off-centre or too tall to sit on the line.
 
 ### Layers
 

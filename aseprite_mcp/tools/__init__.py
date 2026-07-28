@@ -16,4 +16,5 @@ from . import analysis
 from . import slices
 from . import tilemap
 from . import script
+from . import text
 from . import native_fx
