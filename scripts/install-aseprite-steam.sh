@@ -5,12 +5,12 @@ set -euo pipefail
 # Environment variables:
 #   STEAM_USERNAME, STEAM_PASSWORD[, STEAM_GUARD_CODE]
 #   STEAM_APPID (default 431730)
-#   STEAM_INSTALL_DIR (default /opt/steamapps)
+#   STEAM_INSTALL_DIR (default /opt/steamapps/common/Aseprite)
 # Result:
 #   Exports ASEPRITE_PATH=/opt/steamapps/common/Aseprite/aseprite
 
 : "${STEAM_APPID:=431730}"
-: "${STEAM_INSTALL_DIR:=/opt/steamapps}"
+: "${STEAM_INSTALL_DIR:=/opt/steamapps/common/Aseprite}"
 
 if [[ -z "${STEAM_USERNAME:-}" || -z "${STEAM_PASSWORD:-}" ]]; then
   echo "[install-aseprite-steam] No Steam credentials provided; skipping install." >&2
@@ -35,7 +35,7 @@ set +e
 "$STEAMCMD_BIN" +force_install_dir "$STEAM_INSTALL_DIR" \
   "${LOGIN_ARGS[@]}" \
   +app_update "$STEAM_APPID" validate \
-  +quit
+  +quit >&2
 STATUS=$?
 set -e
 if [[ $STATUS -ne 0 ]]; then
@@ -43,10 +43,10 @@ if [[ $STATUS -ne 0 ]]; then
   exit $STATUS
 fi
 
-ASE_BIN_CANDIDATE="${STEAM_INSTALL_DIR}/common/Aseprite/aseprite"
+ASE_BIN_CANDIDATE="${STEAM_INSTALL_DIR}/aseprite"
 if [[ -x "$ASE_BIN_CANDIDATE" ]]; then
   echo "export ASEPRITE_PATH=\"$ASE_BIN_CANDIDATE\"" >> /etc/profile.d/aseprite.sh
-  echo "ASEPRITE_PATH set to $ASE_BIN_CANDIDATE"
+  echo "ASEPRITE_PATH set to $ASE_BIN_CANDIDATE" >&2
 else
   echo "[install-aseprite-steam] Could not locate aseprite binary at $ASE_BIN_CANDIDATE" >&2
   exit 1
