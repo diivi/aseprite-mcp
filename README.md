@@ -272,7 +272,9 @@ Batch-mode equivalents of what a human artist gets from the Aseprite UI.
 | Tool | Description |
 |------|-------------|
 | `start_preview_server` / `stop_preview_server` | Serve exported files over local HTTP |
-| `animation_workflow_guide` | Returns a step-by-step workflow guide for the LLM |
+| `animation_workflow_guide` | How to animate well: key poses, anticipation, squash and stretch, timing (`character`, `environment`) |
+
+The server also sends short pixel-art rules as MCP `instructions` when a client connects (silhouette first, one light direction, clean lines, check each pass), so the model gets them without calling anything.
 
 ### Scripting
 
