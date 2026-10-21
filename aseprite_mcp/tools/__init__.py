@@ -18,3 +18,4 @@ from . import tilemap
 from . import script
 from . import text
 from . import native_fx
+from . import view

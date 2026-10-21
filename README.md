@@ -2,7 +2,7 @@
 
 A Python MCP server that gives AI assistants full control over [Aseprite](https://www.aseprite.org/) for creating pixel art and animated sprites.
 
-**104 tools across 17 categories** — canvas, drawing, layers, animation, palettes, effects, slices, tilemaps, exports, visual-feedback/analysis tools, and a raw Lua escape hatch. The tool set is designed so an LLM has everything it needs to produce *good* pixel art, not just primitives: shading ramps with hue shifting, ordered dithering, outlines, retro palette presets with quantization, onion-skin renders, and frame diffing for animation work.
+**117 tools across 18 categories** — canvas, drawing, layers, animation, palettes, effects, slices, tilemaps, exports, visual-feedback/analysis tools, and a raw Lua escape hatch. The tool set is designed so an LLM has everything it needs to produce *good* pixel art, not just primitives: shading ramps with hue shifting, ordered dithering, outlines, retro palette presets with quantization, onion-skin renders, and frame diffing for animation work.
 
 ## Example: a swordsman, drawn and animated by Claude
 
@@ -42,7 +42,7 @@ Both were created end-to-end by Claude Fable 5 through this server's MCP tools �
 | [Tilemap](#tilemap) | 5 | Tilemap layers, tileset editing, tile placement |
 | [Export & Import](#export--import) | 7 | PNG, GIF, sprite sheets, per-layer/per-tag export, image import |
 | [Inspection](#inspection) | 3 | Read pixels and sprite metadata |
-| [Analysis & Visual Feedback](#analysis--visual-feedback) | 3 | Onion-skin renders, frame diffing, color statistics |
+| [Analysis & Visual Feedback](#analysis--visual-feedback) | 4 | Sprite previews the model can see, onion-skin renders, frame diffing, color statistics |
 | [Quality](#quality) | 4 | Validate and sanitize animation consistency |
 | [Scene](#scene) | 1 | Copy layers between sprite files |
 | [Preview & Guide](#preview--guide) | 3 | Local HTTP preview server, workflow guide |
@@ -248,9 +248,12 @@ Batch-mode equivalents of what a human artist gets from the Aseprite UI.
 
 | Tool | Description |
 |------|-------------|
+| `view_sprite` | Return an image of the frames straight to the model — zoomed, with pixel grid and coordinate rulers so it can fix exact pixels |
 | `render_onion_skin` | Render a frame over translucent ghosts of neighboring frames — check motion continuity without opening Aseprite |
 | `compare_frames` | Diff two frames: changed pixel count, percentage, bounding box |
 | `get_color_stats` | Color histogram of a frame — catches palette drift and near-duplicate colors |
+
+`view_sprite` is the drawing loop's eyes: it returns the picture as MCP image content, so the model sees its work without exporting a file and opening it, and works in clients that cannot read local files. Pick frames with `"3"`, `"1-4"` or `"1,3,6-8"`, and `layer_name` to isolate one layer.
 
 ### Quality
 

@@ -97,8 +97,8 @@ async def export_frame(
 ) -> str:
     """Export a single frame as a PNG, optionally scaled up.
 
-    Use this for visual feedback while drawing: export at scale 8-10 and
-    open the PNG to inspect the result, then keep iterating.
+    To look at your work while drawing, use view_sprite instead: it returns
+    the image directly, with a pixel grid and coordinate rulers.
 
     Args:
         filename: Aseprite file to export
