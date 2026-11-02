@@ -415,6 +415,8 @@ If installed, the binary will be at `/opt/steamapps/common/Aseprite/aseprite` an
 - `uv` package manager
 - Aseprite (set `ASEPRITE_PATH` in `.env` if it is not on your PATH)
 
+An Aseprite run that takes longer than 60 seconds is stopped and reported as an error. Set `ASEPRITE_TIMEOUT_SECONDS` in `.env` to change that limit.
+
 ### Installation:
 ```json
 {

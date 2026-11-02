@@ -36,25 +36,58 @@ def reject_traversal(path: str) -> str | None:
     return None
 
 
+DEFAULT_TIMEOUT_SECONDS = 60.0
+
+
+def command_timeout() -> float:
+    """Seconds an Aseprite run may take, from ASEPRITE_TIMEOUT_SECONDS.
+
+    A missing, non-numeric or non-positive value falls back to the default.
+    """
+    try:
+        timeout = float(os.getenv("ASEPRITE_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS))
+    except ValueError:
+        return DEFAULT_TIMEOUT_SECONDS
+    return timeout if timeout > 0 else DEFAULT_TIMEOUT_SECONDS
+
+
 class AsepriteCommand:
     """Helper class for running Aseprite commands."""
-    
+
     @staticmethod
     def run_command(args):
         """Run an Aseprite command with proper error handling.
-        
+
+        The run is killed after ASEPRITE_TIMEOUT_SECONDS (60 by default), so one
+        stuck Aseprite process cannot block the server forever. It never reads
+        stdin: the server's own stdin is the MCP stdio pipe.
+
         Args:
             args: List of command arguments
-            
+
         Returns:
             tuple: (success, output) where success is a boolean and output is the command output
         """
+        timeout = command_timeout()
         try:
             cmd = [os.getenv('ASEPRITE_PATH', 'aseprite')] + args
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+                stdin=subprocess.DEVNULL,
+                timeout=timeout,
+            )
             return True, result.stdout
         except subprocess.CalledProcessError as e:
             return False, e.stderr
+        except subprocess.TimeoutExpired:
+            return False, (
+                f"Aseprite did not finish within {timeout:g}s and was stopped. "
+                "Output files may already have been written. "
+                "Set ASEPRITE_TIMEOUT_SECONDS to allow longer runs."
+            )
     
     @staticmethod
     def execute_lua_script(script_content, filename=None):
