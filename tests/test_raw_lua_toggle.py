@@ -31,17 +31,13 @@ def registered_tool_names(raw_lua_setting=None):
     return json.loads(result.stdout)
 
 
-def test_raw_lua_tool_is_disabled_by_default():
-    names = registered_tool_names()
+def test_raw_lua_tool_remains_enabled_by_default():
+    assert "run_lua_script" in registered_tool_names()
+
+
+def test_raw_lua_tool_can_be_disabled_without_disabling_sprite_tools():
+    names = registered_tool_names("false")
 
     assert "run_lua_script" not in names
-    assert "draw_rows" in names
-    assert "view_sprite" in names
-
-
-def test_raw_lua_tool_requires_explicit_opt_in():
-    names = registered_tool_names("true")
-
-    assert "run_lua_script" in names
     assert "draw_rows" in names
     assert "view_sprite" in names
