@@ -17,10 +17,9 @@ from . import fx
 from . import analysis
 from . import slices
 from . import tilemap
-# Keep the raw Lua escape hatch available by default for compatibility, but let
-# deployments hide it when they only need the structured sprite tools.
-_ENABLE_RAW_LUA = os.getenv("ASEPRITE_ENABLE_RAW_LUA", "true").strip().lower()
-if _ENABLE_RAW_LUA not in {"0", "false", "no", "off"}:
+# Raw Lua runs with the host user's permissions, so require an explicit opt-in.
+_ENABLE_RAW_LUA = os.getenv("ASEPRITE_ENABLE_RAW_LUA", "false").strip().lower()
+if _ENABLE_RAW_LUA in {"1", "true", "yes", "on"}:
     from . import script
 from . import text
 from . import native_fx
