@@ -1,3 +1,4 @@
+import math
 import subprocess
 import tempfile
 import os
@@ -42,13 +43,14 @@ DEFAULT_TIMEOUT_SECONDS = 60.0
 def command_timeout() -> float:
     """Seconds an Aseprite run may take, from ASEPRITE_TIMEOUT_SECONDS.
 
-    A missing, non-numeric or non-positive value falls back to the default.
+    A missing, non-numeric, non-finite or non-positive value falls back to the
+    default.
     """
     try:
         timeout = float(os.getenv("ASEPRITE_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS))
     except ValueError:
         return DEFAULT_TIMEOUT_SECONDS
-    return timeout if timeout > 0 else DEFAULT_TIMEOUT_SECONDS
+    return timeout if math.isfinite(timeout) and timeout > 0 else DEFAULT_TIMEOUT_SECONDS
 
 
 class AsepriteCommand:

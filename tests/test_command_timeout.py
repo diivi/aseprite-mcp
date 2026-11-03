@@ -69,6 +69,8 @@ def test_command_does_not_read_the_servers_stdin(monkeypatch):
     ("0", DEFAULT_TIMEOUT_SECONDS),
     ("-3", DEFAULT_TIMEOUT_SECONDS),
     ("soon", DEFAULT_TIMEOUT_SECONDS),
+    ("inf", DEFAULT_TIMEOUT_SECONDS),
+    ("nan", DEFAULT_TIMEOUT_SECONDS),
 ])
 def test_command_timeout_from_environment(monkeypatch, value, expected):
     if value is None:
