@@ -415,6 +415,17 @@ If installed, the binary will be at `/opt/steamapps/common/Aseprite/aseprite` an
 - `uv` package manager
 - Aseprite (set `ASEPRITE_PATH` in `.env` if it is not on your PATH)
 
+### Optional: disable the raw Lua tool
+
+The `run_lua_script` tool executes arbitrary Lua, including host `io`/`os`
+access. It is enabled by default for compatibility. To hide it while keeping
+structured sprite tools available, set `ASEPRITE_ENABLE_RAW_LUA=false` in the
+server environment (or `.env`). Accepted false values are `0`, `false`, `no`,
+and `off`.
+
+This setting only hides the raw script tool; it does not sandbox Aseprite or
+change how the structured tools work.
+
 ### Installation:
 ```json
 {
